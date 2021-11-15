@@ -258,10 +258,10 @@ float max_pos[3] = {X_MAX_POS, Y_MAX_POS, Z_MAX_POS};
 bool axis_known_position[3] = {false, false, false};
 float zprobe_zoffset;
 
+int winderSpeed = 0;
+uint8_t active_extruder = 0;
 // Extruder offset
 #if EXTRUDERS > 1
-uint8_t active_extruder = 0;
-int winderSpeed = 0;
 #ifdef SERVO_ENDSTOPS
 int servo_endstops[] = SERVO_ENDSTOPS;
 int servo_endstop_angles[] = SERVO_ENDSTOP_ANGLES;
