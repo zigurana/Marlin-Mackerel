@@ -354,35 +354,10 @@ ISR(TIMER1_COMPA_vect)
 /*   
     // Set the direction bits (X_AXIS=A_AXIS and Y_AXIS=B_AXIS for COREXY)
     if((out_bits & (1<<X_AXIS))!=0){
-      #ifdef DUAL_X_CARRIAGE
-        if (extruder_duplication_enabled){
-          WRITE(X_DIR_PIN, INVERT_X_DIR);
-          WRITE(X2_DIR_PIN, INVERT_X_DIR);
-        }
-        else{
-          if (current_block->active_extruder != 0)
-            WRITE(X2_DIR_PIN, INVERT_X_DIR);
-          else
-            WRITE(X_DIR_PIN, INVERT_X_DIR);
-        }
-      #else
         WRITE(X_DIR_PIN, INVERT_X_DIR);
-      #endif        
       count_direction[X_AXIS]=-1;
     }
     else{
-      #ifdef DUAL_X_CARRIAGE
-        if (extruder_duplication_enabled){
-          WRITE(X_DIR_PIN, !INVERT_X_DIR);
-          WRITE(X2_DIR_PIN, !INVERT_X_DIR);
-        }
-        else{
-          if (current_block->active_extruder != 0)
-            WRITE(X2_DIR_PIN, !INVERT_X_DIR);
-          else
-            WRITE(X_DIR_PIN, !INVERT_X_DIR);
-        }
-      #else
         WRITE(X_DIR_PIN, !INVERT_X_DIR);
       #endif        
       count_direction[X_AXIS]=1;
@@ -414,12 +389,6 @@ ISR(TIMER1_COMPA_vect)
     #endif
       CHECK_ENDSTOPS
       {
-        #ifdef DUAL_X_CARRIAGE
-        // with 2 x-carriages, endstops are only checked in the homing direction for the active extruder
-        if ((current_block->active_extruder == 0 && X_HOME_DIR == -1) 
-            || (current_block->active_extruder != 0 && X2_HOME_DIR == -1))
-        #endif          
-        {
           #if defined(X_MIN_PIN) && X_MIN_PIN > -1
             bool x_min_endstop=(READ(X_MIN_PIN) != X_MIN_ENDSTOP_INVERTING);
             if(x_min_endstop && old_x_min_endstop && (current_block->steps_x > 0)) {
@@ -429,18 +398,11 @@ ISR(TIMER1_COMPA_vect)
             }
             old_x_min_endstop = x_min_endstop;
           #endif
-        }
       }
     }
     else { // +direction
       CHECK_ENDSTOPS
       {
-        #ifdef DUAL_X_CARRIAGE
-        // with 2 x-carriages, endstops are only checked in the homing direction for the active extruder
-        if ((current_block->active_extruder == 0 && X_HOME_DIR == 1) 
-            || (current_block->active_extruder != 0 && X2_HOME_DIR == 1))
-        #endif          
-        {
           #if defined(X_MAX_PIN) && X_MAX_PIN > -1
             bool x_max_endstop=(READ(X_MAX_PIN) != X_MAX_ENDSTOP_INVERTING);
             if(x_max_endstop && old_x_max_endstop && (current_block->steps_x > 0)){
@@ -450,7 +412,6 @@ ISR(TIMER1_COMPA_vect)
             }
             old_x_max_endstop = x_max_endstop;
           #endif
-        }
       }
     }
 
@@ -585,36 +546,10 @@ ISR(TIMER1_COMPA_vect)
       /*//disable x
         counter_x += current_block->steps_x;
         if (counter_x > 0) {
-        #ifdef DUAL_X_CARRIAGE
-          if (extruder_duplication_enabled){
-            WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN);
-            WRITE(X2_STEP_PIN, !INVERT_X_STEP_PIN);
-          }
-          else {
-            if (current_block->active_extruder != 0)
-              WRITE(X2_STEP_PIN, !INVERT_X_STEP_PIN);
-            else
-              WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN);
-          }
-        #else
           WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN);
-        #endif        
           counter_x -= current_block->step_event_count;
           count_position[X_AXIS]+=count_direction[X_AXIS];   
-        #ifdef DUAL_X_CARRIAGE
-          if (extruder_duplication_enabled){
-            WRITE(X_STEP_PIN, INVERT_X_STEP_PIN);
-            WRITE(X2_STEP_PIN, INVERT_X_STEP_PIN);
-          }
-          else {
-            if (current_block->active_extruder != 0)
-              WRITE(X2_STEP_PIN, INVERT_X_STEP_PIN);
-            else
-              WRITE(X_STEP_PIN, INVERT_X_STEP_PIN);
-          }
-        #else
           WRITE(X_STEP_PIN, INVERT_X_STEP_PIN);
-        #endif
         }
 */  //end disable x
       
@@ -1117,29 +1052,16 @@ void babystep(const uint8_t axis,const bool direction)
    
     //setup new step
     WRITE(X_DIR_PIN,(INVERT_X_DIR)^direction);
-    #ifdef DUAL_X_CARRIAGE
-      WRITE(X2_DIR_PIN,(INVERT_X_DIR)^direction);
-    #endif
     
     //perform step 
     WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN); 
-    #ifdef DUAL_X_CARRIAGE
-      WRITE(X2_STEP_PIN, !INVERT_X_STEP_PIN);
-    #endif
     {
     float x=1./float(axis+1)/float(axis+2); //wait a tiny bit
     }
     WRITE(X_STEP_PIN, INVERT_X_STEP_PIN);
-    #ifdef DUAL_X_CARRIAGE
-      WRITE(X2_STEP_PIN, INVERT_X_STEP_PIN);
-    #endif
 
     //get old pin state back.
     WRITE(X_DIR_PIN,old_x_dir_pin);
-    #ifdef DUAL_X_CARRIAGE
-      WRITE(X2_DIR_PIN,old_x_dir_pin);
-    #endif
-
   }
   break;
   case Y_AXIS:
