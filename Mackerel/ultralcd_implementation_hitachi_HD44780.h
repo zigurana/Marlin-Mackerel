@@ -453,15 +453,6 @@ static void lcd_implementation_status_screen()
 #if LCD_HEIGHT > 2
 //Lines 2 for 4 line LCD
 # if LCD_WIDTH < 20
-#  ifdef SDSUPPORT
-    lcd.setCursor(0, 2);
-    lcd_printPGM(PSTR("SD"));
-    if (IS_SD_PRINTING)
-        lcd.print(itostr3(card.percentDone()));
-    else
-        lcd_printPGM(PSTR("---"));
-    lcd.print('%');
-#  endif//SDSUPPORT
 # else//LCD_WIDTH > 19
 #  if EXTRUDERS > 1 && TEMP_SENSOR_BED != 0
     //If we both have a 2nd extruder and a heated bed, show the heated bed temp on the 2nd line on the left, as the first line is filled with extruder temps
@@ -575,17 +566,6 @@ static void lcd_implementation_status_screen()
     
     /*
     // Review the below to see if we want row 3 to alternate between avg,min,max and the below with time or a setting.
-# if LCD_WIDTH > 19
-#  ifdef SDSUPPORT
-    lcd.setCursor(7, 2);
-    lcd_printPGM(PSTR("SD"));
-    if (IS_SD_PRINTING)
-        lcd.print(itostr3(card.percentDone()));
-    else
-        lcd_printPGM(PSTR("---"));
-    lcd.print('%');
-#  endif//SDSUPPORT
-# endif//LCD_WIDTH > 19
     lcd.setCursor(LCD_WIDTH - 6, 2);
     lcd.print(LCD_STR_CLOCK[0]);
     if(starttime != 0)
@@ -729,88 +709,6 @@ void lcd_implementation_drawedit(const char* pstr, char* value)
       lcd.setCursor(LCD_WIDTH -1 - strlen(value), 1);
    #endif
     lcd.print(value);
-}
-static void lcd_implementation_drawmenu_sdfile_selected(uint8_t row, const char* pstr, const char* filename, char* longFilename)
-{
-    char c;
-    uint8_t n = LCD_WIDTH - 1;
-    lcd.setCursor(0, row);
-    lcd.print('>');
-    if (longFilename[0] != '\0')
-    {
-        filename = longFilename;
-        longFilename[LCD_WIDTH-1] = '\0';
-    }
-    while( ((c = *filename) != '\0') && (n>0) )
-    {
-        lcd.print(c);
-        filename++;
-        n--;
-    }
-    while(n--)
-        lcd.print(' ');
-}
-static void lcd_implementation_drawmenu_sdfile(uint8_t row, const char* pstr, const char* filename, char* longFilename)
-{
-    char c;
-    uint8_t n = LCD_WIDTH - 1;
-    lcd.setCursor(0, row);
-    lcd.print(' ');
-    if (longFilename[0] != '\0')
-    {
-        filename = longFilename;
-        longFilename[LCD_WIDTH-1] = '\0';
-    }
-    while( ((c = *filename) != '\0') && (n>0) )
-    {
-        lcd.print(c);
-        filename++;
-        n--;
-    }
-    while(n--)
-        lcd.print(' ');
-}
-static void lcd_implementation_drawmenu_sddirectory_selected(uint8_t row, const char* pstr, const char* filename, char* longFilename)
-{
-    char c;
-    uint8_t n = LCD_WIDTH - 2;
-    lcd.setCursor(0, row);
-    lcd.print('>');
-    lcd.print(LCD_STR_FOLDER[0]);
-    if (longFilename[0] != '\0')
-    {
-        filename = longFilename;
-        longFilename[LCD_WIDTH-2] = '\0';
-    }
-    while( ((c = *filename) != '\0') && (n>0) )
-    {
-        lcd.print(c);
-        filename++;
-        n--;
-    }
-    while(n--)
-        lcd.print(' ');
-}
-static void lcd_implementation_drawmenu_sddirectory(uint8_t row, const char* pstr, const char* filename, char* longFilename)
-{
-    char c;
-    uint8_t n = LCD_WIDTH - 2;
-    lcd.setCursor(0, row);
-    lcd.print(' ');
-    lcd.print(LCD_STR_FOLDER[0]);
-    if (longFilename[0] != '\0')
-    {
-        filename = longFilename;
-        longFilename[LCD_WIDTH-2] = '\0';
-    }
-    while( ((c = *filename) != '\0') && (n>0) )
-    {
-        lcd.print(c);
-        filename++;
-        n--;
-    }
-    while(n--)
-        lcd.print(' ');
 }
 #define lcd_implementation_drawmenu_back_selected(row, pstr, data) lcd_implementation_drawmenu_generic(row, pstr, LCD_STR_UPLEVEL[0], LCD_STR_UPLEVEL[0])
 #define lcd_implementation_drawmenu_back(row, pstr, data) lcd_implementation_drawmenu_generic(row, pstr, ' ', LCD_STR_UPLEVEL[0])

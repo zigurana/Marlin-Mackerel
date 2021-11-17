@@ -234,10 +234,6 @@
 //=============================Additional Features===========================
 //===========================================================================
 
-#define SD_FINISHED_STEPPERRELEASE true  //if sd support and the file is finished: disable steppers?
-#define SD_FINISHED_RELEASECOMMAND "M84 X Y Z E" // You might want to keep the z enabled so your bed stays in place.
-
-#define SDCARD_RATHERRECENTFIRST  //reverse file order of sd card menu display. Its sorted practically after the file system block order.
 // if a file is deleted, it frees a block. hence, the order is not purely chronological. To still have auto0.g accessible, there is again the option to do that.
 // using:
 //#define MENU_ADDAUTOSTART
@@ -251,9 +247,6 @@
 //  However, THIS FEATURE IS UNSAFE!, as it will only work if interrupts are disabled. And the code could hang in an interrupt routine with interrupts disabled.
 //#define WATCHDOG_RESET_MANUAL
 #endif
-
-// Enable the option to stop SD printing when hitting and endstops, needs to be enabled from the LCD menu when this option is enabled.
-//#define ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
 
 // Babystepping enables the user to control the axis in tiny amounts, independently from the normal printing process
 // it can e.g. be used to change z-positions in the print startup phase in real-time
@@ -320,11 +313,7 @@ const unsigned int dropsegments=5; //everything with less than this number of st
 
 // The number of linear motions that can be in the plan at any give time.
 // THE BLOCK_BUFFER_SIZE NEEDS TO BE A POWER OF 2, i.g. 8,16,32 because shifts and ors are used to do the ring-buffering.
-#if defined SDSUPPORT
-  #define BLOCK_BUFFER_SIZE 8   // SD,LCD,Buttons take more memory, block buffer needs to be smaller
-#else
-  #define BLOCK_BUFFER_SIZE 16 // maximize block buffer
-#endif
+#define BLOCK_BUFFER_SIZE 16 // maximize block buffer
 
 
 //The ASCII buffer for receiving from the serial:

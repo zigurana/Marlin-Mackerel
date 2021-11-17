@@ -3,8 +3,6 @@
 #ifdef ULTRA_LCD
 #include "Mackerel.h"
 #include "language.h"
-#include "cardreader.h"
-#include "temperature.h"
 #include "stepper.h"
 #include "ConfigurationStore.h"
 
@@ -58,7 +56,6 @@ static void lcd_control_temperature_preheat_abs_settings_menu();
 static void lcd_control_motion_menu();
 static void lcd_set_contrast();
 static void lcd_control_retract_menu();
-static void lcd_sdcard_menu();
 
 static void lcd_quick_feedback();//Cause an LCD refresh, and give the user visual or audible feedback that something has happened
 
@@ -67,8 +64,6 @@ static void menu_action_back(menuFunc_t data);
 static void menu_action_submenu(menuFunc_t data);
 static void menu_action_gcode(const char* pgcode);
 static void menu_action_function(menuFunc_t data);
-static void menu_action_sdfile(const char* filename, char* longFilename);
-static void menu_action_sddirectory(const char* filename, char* longFilename);
 static void menu_action_setting_edit_bool(const char* pstr, bool* ptr);
 static void menu_action_setting_edit_int3(const char* pstr, int* ptr, int minValue, int maxValue);
 static void menu_action_setting_edit_float3(const char* pstr, float* ptr, float minValue, float maxValue);
@@ -143,9 +138,6 @@ uint8_t currentMenuViewOffset;              /* scroll offset in the current menu
 uint32_t blocking_enc;
 uint8_t lastEncoderBits;
 uint32_t encoderPosition;
-#if (SDCARDDETECT > 0)
-bool lcd_oldcardstatus;
-#endif
 
 menuFunc_t currentMenu = lcd_status_screen; /* function pointer to the currently active menu */
 uint32_t lcd_next_update_millis;
@@ -241,16 +233,6 @@ static void lcd_return_to_control_temperature()
     currentMenu = lcd_control_temperature_menu;
 }
 
-static void lcd_sdcard_pause()
-{
-    card.pauseSDPrint();
-}
-static void lcd_sdcard_resume()
-{
-    card.startFileprint();
-    starttime=millis();
-}
-
 static void lcd_clear_statistics()
 	{
 	avg_measured_filament_width=0.0;
@@ -310,18 +292,6 @@ static void lcd_extruder_manual()
 	}
 
 
-static void lcd_sdcard_stop()
-{
-    card.sdprinting = false;
-    card.closefile();
-    quickStop();
-    if(SD_FINISHED_STEPPERRELEASE)
-    {
-        enquecommand_P(PSTR(SD_FINISHED_RELEASECOMMAND));
-    }
-    autotempShutdown();
-}
-
 void lcd_preheat_extruder()
 {
     setTargetHotend0(absPreheatHotendTemp);
@@ -370,7 +340,7 @@ static void lcd_main_menu()
     else
     	MENU_ITEM(function, MSG_ENABLE_STATS, lcd_enable_statistics);
     
-    if (movesplanned() || IS_SD_PRINTING)
+    if (movesplanned())
     {
         MENU_ITEM(submenu, MSG_TUNE, lcd_tune_menu);
     }else{
@@ -379,43 +349,8 @@ static void lcd_main_menu()
     MENU_ITEM(function, MSG_PREHEAT_ABS, lcd_preheat_extruder);
     MENU_ITEM(function, MSG_COOLDOWN, lcd_cooldown);
     MENU_ITEM(submenu, MSG_CONTROL, lcd_control_menu);
-   
-/*
-#ifdef SDSUPPORT
-    if (card.cardOK)
-    {
-        if (card.isFileOpen())
-        {
-            if (card.sdprinting)
-                MENU_ITEM(function, MSG_PAUSE_PRINT, lcd_sdcard_pause);
-            else
-                MENU_ITEM(function, MSG_RESUME_PRINT, lcd_sdcard_resume);
-            MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
-        }else{
-            MENU_ITEM(submenu, MSG_CARD_MENU, lcd_sdcard_menu);
-#if SDCARDDETECT < 1
-            MENU_ITEM(gcode, MSG_CNG_SDCARD, PSTR("M21"));  // SD-card changed by user
-#endif
-        }
-    }else{
-        MENU_ITEM(submenu, MSG_NO_CARD, lcd_sdcard_menu);
-#if SDCARDDETECT < 1
-        MENU_ITEM(gcode, MSG_INIT_SDCARD, PSTR("M21")); // Manually initialize the SD-card via user interface
-#endif
-    }
-#endif
-*/
     END_MENU();
 }
-
-#ifdef SDSUPPORT
-static void lcd_autostart_sd()
-{
-    card.lastnr=0;
-    card.setroot();
-    card.checkautostart(true);
-}
-#endif
 
 #ifdef BABYSTEPPING
 static void lcd_babystep_x()
@@ -690,11 +625,6 @@ static void lcd_prepare_menu()
 #endif
     MENU_ITEM_EDIT(float6,MSG_LENGTH_CUTOFF, &fil_length_cutoff,1000,999000);
     MENU_ITEM_EDIT(int3, MSG_WINDER_SPEED, &default_winder_speed, 0, DEFAULT_WINDER_RPM_FACTOR);
-#ifdef SDSUPPORT
-    #ifdef MENU_ADDAUTOSTART
-      MENU_ITEM(function, MSG_AUTOSTART, lcd_autostart_sd);
-    #endif
-#endif
 //    MENU_ITEM(gcode, MSG_DISABLE_STEPPERS, PSTR("M84"));
  //   MENU_ITEM(gcode, MSG_AUTO_HOME, PSTR("G28"));
     //MENU_ITEM(gcode, MSG_SET_ORIGIN, PSTR("G92 X0 Y0 Z0"));
@@ -1091,58 +1021,6 @@ static void lcd_control_retract_menu()
 }
 #endif
 
-#if SDCARDDETECT == -1
-static void lcd_sd_refresh()
-{
-    card.initsd();
-    currentMenuViewOffset = 0;
-}
-#endif
-static void lcd_sd_updir()
-{
-    card.updir();
-    currentMenuViewOffset = 0;
-}
-
-void lcd_sdcard_menu()
-{
-    if (lcdDrawUpdate == 0 && LCD_CLICKED == 0)
-        return;	// nothing to do (so don't thrash the SD card)
-    uint16_t fileCnt = card.getnrfilenames();
-    START_MENU();
-    MENU_ITEM(back, MSG_MAIN, lcd_main_menu);
-    card.getWorkDirName();
-    if(card.filename[0]=='/')
-    {
-#if SDCARDDETECT == -1
-        MENU_ITEM(function, LCD_STR_REFRESH MSG_REFRESH, lcd_sd_refresh);
-#endif
-    }else{
-        MENU_ITEM(function, LCD_STR_FOLDER "..", lcd_sd_updir);
-    }
-
-    for(uint16_t i=0;i<fileCnt;i++)
-    {
-        if (_menuItemNr == _lineNr)
-        {
-            #ifndef SDCARD_RATHERRECENTFIRST
-              card.getfilename(i);
-            #else
-              card.getfilename(fileCnt-1-i);
-            #endif
-            if (card.filenameIsDir)
-            {
-                MENU_ITEM(sddirectory, MSG_CARD_MENU, card.filename, card.longFilename);
-            }else{
-                MENU_ITEM(sdfile, MSG_CARD_MENU, card.filename, card.longFilename);
-            }
-        }else{
-            MENU_ITEM_DUMMY();
-        }
-    }
-    END_MENU();
-}
-
 #define menu_edit_type(_type, _name, _strFunc, scale) \
     void menu_edit_ ## _name () \
     { \
@@ -1281,22 +1159,6 @@ static void menu_action_function(menuFunc_t data)
 {
     (*data)();
 }
-static void menu_action_sdfile(const char* filename, char* longFilename)
-{
-    char cmd[30];
-    char* c;
-    sprintf_P(cmd, PSTR("M23 %s"), filename);
-    for(c = &cmd[4]; *c; c++)
-        *c = tolower(*c);
-    enquecommand(cmd);
-    enquecommand_P(PSTR("M24"));
-    lcd_return_to_status();
-}
-static void menu_action_sddirectory(const char* filename, char* longFilename)
-{
-    card.chdir(filename);
-    encoderPosition = 0;
-}
 static void menu_action_setting_edit_bool(const char* pstr, bool* ptr)
 {
     *ptr = !(*ptr);
@@ -1321,13 +1183,6 @@ void initialize_lcd()
     pinMode(BTN_ENC,INPUT);
     WRITE(BTN_ENC,HIGH);
   #endif
-#if defined (SDSUPPORT) && defined(SDCARDDETECT) && (SDCARDDETECT > 0)
-    pinMode(SDCARDDETECT,INPUT);
-    WRITE(SDCARDDETECT, HIGH);
-    delay(500);  //fmm debug wait 1/2 sec to allow card to stabilize - seems to read 'Card Removed' otherwise
-    lcd_oldcardstatus = IS_SD_INSERTED;
-    lcd_oldcardstatus = IS_SD_INSERTED;  //repeat just in case since it seems to change
-#endif//(SDCARDDETECT > 0)
 #ifdef LCD_HAS_SLOW_BUTTONS
     slow_buttons = 0;
 #endif
@@ -1347,52 +1202,8 @@ void lcd_update()
 
     lcd_buttons_update();
 
-    #if (SDCARDDETECT > 0)
-    if((IS_SD_INSERTED != lcd_oldcardstatus))
-    {
-        lcdDrawUpdate = 2;
-        lcd_oldcardstatus = IS_SD_INSERTED;
-        lcd_implementation_init(); // to maybe revive the LCD if static electricity killed it.
-
-        if(lcd_oldcardstatus)
-        {
-            card.initsd();
-            LCD_MESSAGEPGM(MSG_SD_INSERTED);
-        }
-        else
-        {
-            card.release();
-            LCD_MESSAGEPGM(MSG_SD_REMOVED);
-        }
-    }
-    #endif//CARDINSERTED
-
     if (lcd_next_update_millis < millis())
     {
-#ifdef ULTIPANEL
-		#ifdef REPRAPWORLD_KEYPAD
-        	if (REPRAPWORLD_KEYPAD_MOVE_Z_UP) {
-        		reprapworld_keypad_move_z_up();
-        	}
-        	if (REPRAPWORLD_KEYPAD_MOVE_Z_DOWN) {
-        		reprapworld_keypad_move_z_down();
-        	}
-        	if (REPRAPWORLD_KEYPAD_MOVE_X_LEFT) {
-        		reprapworld_keypad_move_x_left();
-        	}
-        	if (REPRAPWORLD_KEYPAD_MOVE_X_RIGHT) {
-        		reprapworld_keypad_move_x_right();
-        	}
-        	if (REPRAPWORLD_KEYPAD_MOVE_Y_DOWN) {
-        		reprapworld_keypad_move_y_down();
-        	}
-        	if (REPRAPWORLD_KEYPAD_MOVE_Y_UP) {
-        		reprapworld_keypad_move_y_up();
-        	}
-        	if (REPRAPWORLD_KEYPAD_MOVE_HOME) {
-        		reprapworld_keypad_move_home();
-        	}
-		#endif
         if (abs(encoderDiff) >= ENCODER_PULSES_PER_STEP)
         {
             lcdDrawUpdate = 1;
@@ -1402,7 +1213,6 @@ void lcd_update()
         }
         if (LCD_CLICKED)
             timeoutToStatus = millis() + LCD_TIMEOUT_TO_STATUS;
-#endif//ULTIPANEL
 
 #ifdef DOGLCD        // Changes due to different driver architecture of the DOGM display
         blink++;     // Variable for fan animation and alive dot

@@ -27,7 +27,6 @@
 #include "temperature.h"
 #include "ultralcd.h"
 #include "language.h"
-#include "cardreader.h"
 #include "speed_lookuptable.h"
 #if defined(DIGIPOTSS_PIN) && DIGIPOTSS_PIN > -1
 #include <SPI.h>
@@ -192,17 +191,6 @@ void checkHitEndstops()
    endstop_x_hit=false;
    endstop_y_hit=false;
    endstop_z_hit=false;
-#ifdef ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
-   if (abort_on_endstop_hit)
-   {
-     card.sdprinting = false;
-     card.closefile();
-     quickStop();
-     setTargetHotend0(0);
-     setTargetHotend1(0);
-     setTargetHotend2(0);
-   }
-#endif
  }
 }
 
