@@ -64,7 +64,7 @@ typedef struct {
 } block_t;
 
 // Initialize the motion plan subsystem      
-void plan_init();
+void initialize_planner();
 
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
 // millimaters. Feed rate specifies the speed of the motion.

@@ -408,7 +408,7 @@ void planner_recalculate()
   planner_recalculate_trapezoids();
 }
 
-void plan_init()
+void initialize_planner()
 {
   block_buffer_head = 0;
   block_buffer_tail = 0;

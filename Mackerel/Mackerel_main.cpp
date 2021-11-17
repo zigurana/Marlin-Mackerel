@@ -262,20 +262,20 @@ int winderSpeed = 0;
 uint8_t active_extruder = 0;
 // Extruder offset
 #if EXTRUDERS > 1
-  #ifdef SERVO_ENDSTOPS
-    int servo_endstops[] = SERVO_ENDSTOPS;
-    int servo_endstop_angles[] = SERVO_ENDSTOP_ANGLES;
-  #endif
+#ifdef SERVO_ENDSTOPS
+int servo_endstops[] = SERVO_ENDSTOPS;
+int servo_endstop_angles[] = SERVO_ENDSTOP_ANGLES;
+#endif
 #endif
 
 #ifdef FWRETRACT
-  bool autoretract_enabled = false;
-  bool retracted = false;
-  float retract_length = RETRACT_LENGTH;
-  float retract_feedrate = RETRACT_FEEDRATE;
-  float retract_zlift = RETRACT_ZLIFT;
-  float retract_recover_length = RETRACT_RECOVER_LENGTH;
-  float retract_recover_feedrate = RETRACT_RECOVER_FEEDRATE;
+bool autoretract_enabled = false;
+bool retracted = false;
+float retract_length = RETRACT_LENGTH;
+float retract_feedrate = RETRACT_FEEDRATE;
+float retract_zlift = RETRACT_ZLIFT;
+float retract_recover_length = RETRACT_RECOVER_LENGTH;
+float retract_recover_feedrate = RETRACT_RECOVER_FEEDRATE;
 #endif
 
 bool powersupply = true;
@@ -352,12 +352,6 @@ Servo servos[NUM_SERVOS];
 
 bool CooldownNoWait = true;
 bool target_direction;
-
-//Insert variables if CHDK is defined
-#ifdef CHDK
-unsigned long chdkHigh = 0;
-boolean chdkActive = false;
-#endif
 
 //===========================================================================
 //=============================Routines======================================
@@ -442,14 +436,6 @@ void setup_killpin()
 #endif
 }
 
-void setup_photpin()
-{
-#if defined(PHOTOGRAPH_PIN) && PHOTOGRAPH_PIN > -1
-  SET_OUTPUT(PHOTOGRAPH_PIN);
-  WRITE(PHOTOGRAPH_PIN, LOW);
-#endif
-}
-
 void setup_extruder_on_off_pin()
 {
 #if defined(EXTRUDER_MOTOR_ON_OFF_PIN) && EXTRUDER_MOTOR_ON_OFF_PIN > -1
@@ -458,31 +444,7 @@ void setup_extruder_on_off_pin()
 #endif
 }
 
-void setup_powerhold()
-{
-#if defined(SUICIDE_PIN) && SUICIDE_PIN > -1
-  SET_OUTPUT(SUICIDE_PIN);
-  WRITE(SUICIDE_PIN, HIGH);
-#endif
-#if defined(PS_ON_PIN) && PS_ON_PIN > -1
-  SET_OUTPUT(PS_ON_PIN);
-#if defined(PS_DEFAULT_OFF)
-  WRITE(PS_ON_PIN, PS_ON_ASLEEP);
-#else
-  WRITE(PS_ON_PIN, PS_ON_AWAKE);
-#endif
-#endif
-}
-
-void suicide()
-{
-#if defined(SUICIDE_PIN) && SUICIDE_PIN > -1
-  SET_OUTPUT(SUICIDE_PIN);
-  WRITE(SUICIDE_PIN, LOW);
-#endif
-}
-
-void servo_init()
+void initialize_servos()
 {
 #if (NUM_SERVOS >= 1) && defined(SERVO0_PIN) && (SERVO0_PIN > -1)
   servos[0].attach(SERVO0_PIN);
@@ -510,7 +472,6 @@ void servo_init()
     }
   }
 #endif
-
 }
 
 void setup_serial()
@@ -561,190 +522,55 @@ void print_build_and_version_info_to_serial()
   SERIAL_ECHOLN((int)sizeof(block_t) * BLOCK_BUFFER_SIZE);
 }
 
-void setup()
+void setup_beeper()
 {
-  setup_killpin();
-  setup_powerhold();
-  setup_serial();
-
-  for (int8_t i = 0; i < BUFSIZE; i++)
-  {
-    fromsd[i] = false;
-  }
-
-  // loads data from EEPROM if available else uses defaults (and resets step acceleration rate)
-  Config_RetrieveSettings();
-
-  tp_init();   // Initialize temperature loop
-  plan_init(); // Initialize planner;
-  watchdog_init();
-  st_init(); // Initialize stepper, this enables interrupts!
-  setup_photpin();
-  servo_init();
-  setup_extruder_on_off_pin(); //FMM initialize pin to shut down/start up extruder motor.
-  lcd_init();
-  _delay_ms(1000); // wait 1sec to display the splash screen
-
-#if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
-  SET_OUTPUT(CONTROLLERFAN_PIN); //Set pin used for driver cooling fan
-#endif
-
-#ifdef DIGIPOT_I2C
-  digipot_i2c_init();
-#endif
-
 #if BEEPER > 0
   SET_OUTPUT(BEEPER);
 #endif
 }
 
-void loop()
+void disable_sd_buffer()
 {
-  if (buflen < (BUFSIZE - 1))
-    get_command();
-#ifdef SDSUPPORT
-  card.checkautostart(false);
+  for (int8_t i = 0; i < BUFSIZE; i++)
+  {
+    fromsd[i] = false;
+  }
+}
+
+void setup_controllerfan()
+{
+#if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
+  SET_OUTPUT(CONTROLLERFAN_PIN); //Set pin used for driver cooling fan
 #endif
-  if (buflen)
-  {
-#ifdef SDSUPPORT
-    if (card.saving)
-    {
-      if (strstr_P(cmdbuffer[bufindr], PSTR("M29")) == NULL)
-      {
-        card.write_command(cmdbuffer[bufindr]);
-        if (card.logging)
-        {
-          process_commands();
-        }
-        else
-        {
-          SERIAL_PROTOCOLLNPGM(MSG_OK);
-        }
-      }
-      else
-      {
-        card.closefile();
-        SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
-      }
-    }
-    else
-    {
-      process_commands();
-    }
-#else
-    process_commands();
-#endif //SDSUPPORT
-    buflen = (buflen - 1);
-    bufindr = (bufindr + 1) % BUFSIZE;
-  }
-  //check heater every n milliseconds
-  manage_heater();
-  manage_inactivity();
-  checkHitEndstops();
-  lcd_update();
+}
 
-  //FMM calculate max, min, and average filament width
+void setup()
+{
+  setup_killpin();
+  setup_serial();
+  setup_beeper();
+  disable_sd_buffer();
 
-  timebuff = millis();
-  deltatime = timebuff - lasttime; //calculate delta times
-  lasttime = timebuff;             //keep track of last sample time
+  // loads data from EEPROM if available else uses defaults (and resets step acceleration rate)
+  Config_RetrieveSettings();
 
-  if (extrude_length < fil_length_cutoff)
-    winderSpeed = default_winder_speed * 255 / winder_rpm_factor; //keep winder on all the time unless at end of spool
+  initialize_temperature_loop();
+  initialize_planner();
+  watchdog_init();
+  initialize_stepper_motors(); // This enables interrupts!
+  initialize_servos();
+  setup_extruder_on_off_pin(); //FMM initialize pin to shut down/start up extruder motor.
+  initialize_lcd();
+  setup_controllerfan();
 
-  if ((extrude_status & (ES_STATS_SET)) == (ES_STATS_SET)) //check whether we should collect stats on filament width
-  {
-
-    sum_measured_filament_width = sum_measured_filament_width + current_filwidth;
-    n_measured_filament_width = n_measured_filament_width + 1.0;
-    avg_measured_filament_width = sum_measured_filament_width / n_measured_filament_width;
-    max_measured_filament_width = max(max_measured_filament_width, current_filwidth);
-    if (round(min_measured_filament_width) == 0)
-      min_measured_filament_width = current_filwidth;
-    min_measured_filament_width = min(min_measured_filament_width, current_filwidth);
-    extrude_length = extrude_length + puller_increment;
-
-    if (extrude_length >= fil_length_cutoff)
-    { //check whether we extruded enough filament
-      setTargetHotend0(0);
-      winderSpeed = 0;
-      digitalWrite(CONTROLLERFAN_PIN, 0);                //stop Fan
-      extrude_status = extrude_status & ES_ENABLE_CLEAR; //update extrude_status to shut down extruder
-      extrude_status = extrude_status & ES_STATS_CLEAR;  //shut down statistics
-      timeremaining = 0;
-      LCD_MESSAGEPGM(MSG_EXTRUDE_COMPLETE);
-    }
-    else
-    {
-
-      if (puller_feedrate > 0)
-        timeremaining = (fil_length_cutoff - extrude_length) / puller_feedrate * 1000;
-    }
-  }
-
-  //FMM generate extruder motion based on LCD inputs
-
-  if (READ(EXTRUDER_MOTOR_ON_OFF_PIN)) //check if pin is high (=off)
-    extrude_status = extrude_status & ES_SWITCH_CLEAR;
-  else
-    extrude_status = extrude_status | ES_SWITCH_SET;
-
-  if (degHotend(active_extruder) > EXTRUDE_MINTEMP) //check if extruder at min heated temp
-    extrude_status = extrude_status | ES_HOT_SET;
-  else
-  {
-    extrude_status = extrude_status & ES_HOT_CLEAR;
-    extrude_status = extrude_status & ES_TEMP_CLEAR;
-  }
-
-  if (((degHotend(active_extruder) >= (degTargetHotend(active_extruder) - TEMP_WINDOW)) && (degHotend(active_extruder) <= (degTargetHotend(active_extruder) + TEMP_WINDOW))) && ((extrude_status & ES_TEMP_SET) == 0)) //check if extruder at or near setpoint
-  {
-    extrude_status = extrude_status | ES_TEMP_SET;
-#if BEEPER > 0
-    WRITE(BEEPER, HIGH);
+#ifdef DIGIPOT_I2C
+  digipot_i2c_init();
 #endif
-    LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
-  }
+}
 
-  if ((extrude_status & ES_ENABLE_SET) > 0)
-  {
-
-    //old
-    // feedrate=20*60;
-    // extruder_increment=feedmultiply/100.0;
-    // puller_increment=extruder_increment*pullermultiply/1000.0;
-
-    //extruder_feedrate=feedrate*extruder_increment/60.0;
-    //puller_feedrate=extruder_feedrate*pullermultiply/1000.0;
-
-    //new
-    extruder_increment = extruder_rpm_set / EXTRUDER_RPM_MAX * 8; //make extruder increment 1 unit for max RPM and scale down as RPM input decreases *8 for more duration (removes pulsing)
-    extruder_feedrate = extruder_rpm_set / 0.6;
-    puller_increment = puller_feedrate * 0.6 / EXTRUDER_RPM_MAX * 8; //make puller increment vary to control it *8 for more duration (removes pulsing)
-
-    //calculate move  - always scale step size to feedmultiply (was previously fix step side of 0.1)
-    destination[P_AXIS] = puller_increment + current_position[P_AXIS]; //puller
-
-    if ((extrude_status & ES_HOT_SET) && (extrude_status & ES_SWITCH_SET)) //check that extruder is at temp and switch in on
-    {                                                                      //calculate move  - always scale step size to feedmultiply (was previously fix step side of 0.1)
-      destination[E_AXIS] = extruder_increment + current_position[E_AXIS]; //extruder
-      //extruder_rpm=extruder_feedrate*0.6;  //convert to rpm
-      extruder_rpm = extruder_rpm_set;
-      feedrate = extruder_feedrate;
-      duration = duration + deltatime; //keep track of extrusion run time
-    }
-    else
-    {
-      extruder_rpm = 0.0;
-      feedrate = puller_feedrate;
-    }
-
-    if (millis() - PID_lasttime > 250)
-    {
-      PID_lasttime = millis();
-
-#ifdef PULLER_PID_CONTROL
+void control_puller()
+{
+  #ifdef PULLER_PID_CONTROL
 
       //calculate PID - delta is spatial, not time
       if ((extrude_status & (ES_AUTO_SET | ES_HOT_SET | ES_SWITCH_SET)) == (ES_AUTO_SET | ES_HOT_SET | ES_SWITCH_SET))
@@ -834,6 +660,172 @@ void loop()
       }
 
 #endif
+}
+
+//FMM calculate max, min, and average filament width
+void calculate_filament_statistics()
+{
+  timebuff = millis();
+  deltatime = timebuff - lasttime; //calculate delta times
+  lasttime = timebuff;             //keep track of last sample time
+
+  if (extrude_length < fil_length_cutoff)
+    winderSpeed = default_winder_speed * 255 / winder_rpm_factor; //keep winder on all the time unless at end of spool
+
+  if ((extrude_status & (ES_STATS_SET)) == (ES_STATS_SET)) //check whether we should collect stats on filament width
+  {
+
+    sum_measured_filament_width = sum_measured_filament_width + current_filwidth;
+    n_measured_filament_width = n_measured_filament_width + 1.0;
+    avg_measured_filament_width = sum_measured_filament_width / n_measured_filament_width;
+    max_measured_filament_width = max(max_measured_filament_width, current_filwidth);
+    if (round(min_measured_filament_width) == 0)
+      min_measured_filament_width = current_filwidth;
+    min_measured_filament_width = min(min_measured_filament_width, current_filwidth);
+    extrude_length = extrude_length + puller_increment;
+
+    if (extrude_length >= fil_length_cutoff)
+    { //check whether we extruded enough filament
+      setTargetHotend0(0);
+      winderSpeed = 0;
+      digitalWrite(CONTROLLERFAN_PIN, 0);                //stop Fan
+      extrude_status = extrude_status & ES_ENABLE_CLEAR; //update extrude_status to shut down extruder
+      extrude_status = extrude_status & ES_STATS_CLEAR;  //shut down statistics
+      timeremaining = 0;
+      LCD_MESSAGEPGM(MSG_EXTRUDE_COMPLETE);
+    }
+    else
+    {
+
+      if (puller_feedrate > 0)
+        timeremaining = (fil_length_cutoff - extrude_length) / puller_feedrate * 1000;
+    }
+  }
+}
+
+/////Output for MQTT
+void log_to_mqtt()
+{
+#ifdef MQTT_SERIAL_OUT
+  if (millis() > time_snap + MQTT_TIME_INTERVAL_MS)
+  {
+    time_snap = millis();
+    MYSERIAL.print("MQTT:/FE/extruder/val/");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("temp_c", current_temperature[0], 0);
+    json_pair_last("rpm", extruder_rpm, 2);
+
+    MYSERIAL.print("MQTT:/FE/puller/val/");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("feedrate_mm/sec", puller_feedrate, 2);
+    json_pair("rpm", puller_feedrate * (60.0 / PULLER_WHEEL_CIRC), 2);
+    json_pair_last("dist_mm", extrude_length, 2);
+
+    MYSERIAL.print("MQTT:/FE/winder/val/");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("rpm", default_winder_speed, 2);
+    json_pair_last("set", winderSpeed, 2);
+
+#ifdef FILAMENT_SENSOR
+    MYSERIAL.print("MQTT:/FE/filament_dia/val");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("fil_mm", current_filwidth, 2);
+    json_pair_last("blob_mm", current_blobwidth, 2);
+#endif
+
+    MYSERIAL.print("MQTT:/FE/puller/pid/");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("dia_tgt_mm", filament_width_desired, 2);
+    json_pair("p", fwidthKp, 4);
+    json_pair("i", fwidthKi, 4);
+    json_pair_last("d", fwidthKd, 4);
+
+    MYSERIAL.print("MQTT:/FE/extruder/rpm/pid/");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("dia_tgt_mm", blob_width_desired, 2);
+    json_pair("p", bwidthKp, 4);
+    json_pair("i", bwidthKi, 4);
+    json_pair_last("d", bwidthKd, 4);
+
+    MYSERIAL.print("MQTT:/FE/extruder/temp/pid/");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("tgt_c", target_temperature[0], 0);
+    json_pair("p", Kp, 4);
+    json_pair("i", Ki, 4);
+    json_pair_last("d", Kd, 4);
+
+    MYSERIAL.print("MQTT:/FE/status/");
+    json_pair_first("ts_m", time_snap, 0);
+    json_pair("time_remain_sec", timeremaining / 60000, 0);
+    json_pair("time_elapsed_sec", duration / 60000, 0);
+    json_pair_last("sys_bits", extrude_status, 0);
+  }
+#endif
+}
+
+  //FMM generate extruder and puller motion based on LCD inputs
+void manage_motion()
+{
+  if (READ(EXTRUDER_MOTOR_ON_OFF_PIN)) //check if pin is high (=off)
+    extrude_status = extrude_status & ES_SWITCH_CLEAR;
+  else
+    extrude_status = extrude_status | ES_SWITCH_SET;
+
+  if (degHotend(active_extruder) > EXTRUDE_MINTEMP) //check if extruder at min heated temp
+    extrude_status = extrude_status | ES_HOT_SET;
+  else
+  {
+    extrude_status = extrude_status & ES_HOT_CLEAR;
+    extrude_status = extrude_status & ES_TEMP_CLEAR;
+  }
+
+  if (((degHotend(active_extruder) >= (degTargetHotend(active_extruder) - TEMP_WINDOW)) && (degHotend(active_extruder) <= (degTargetHotend(active_extruder) + TEMP_WINDOW))) && ((extrude_status & ES_TEMP_SET) == 0)) //check if extruder at or near setpoint
+  {
+    extrude_status = extrude_status | ES_TEMP_SET;
+#if BEEPER > 0
+    WRITE(BEEPER, HIGH);
+#endif
+    LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
+  }
+
+  if ((extrude_status & ES_ENABLE_SET) > 0)
+  {
+
+    //old
+    // feedrate=20*60;
+    // extruder_increment=feedmultiply/100.0;
+    // puller_increment=extruder_increment*pullermultiply/1000.0;
+
+    //extruder_feedrate=feedrate*extruder_increment/60.0;
+    //puller_feedrate=extruder_feedrate*pullermultiply/1000.0;
+
+    //new
+    extruder_increment = extruder_rpm_set / EXTRUDER_RPM_MAX * 8; //make extruder increment 1 unit for max RPM and scale down as RPM input decreases *8 for more duration (removes pulsing)
+    extruder_feedrate = extruder_rpm_set / 0.6;
+    puller_increment = puller_feedrate * 0.6 / EXTRUDER_RPM_MAX * 8; //make puller increment vary to control it *8 for more duration (removes pulsing)
+
+    //calculate move  - always scale step size to feedmultiply (was previously fix step side of 0.1)
+    destination[P_AXIS] = puller_increment + current_position[P_AXIS]; //puller
+
+    if ((extrude_status & ES_HOT_SET) && (extrude_status & ES_SWITCH_SET)) //check that extruder is at temp and switch in on
+    {                                                                      //calculate move  - always scale step size to feedmultiply (was previously fix step side of 0.1)
+      destination[E_AXIS] = extruder_increment + current_position[E_AXIS]; //extruder
+      //extruder_rpm=extruder_feedrate*0.6;  //convert to rpm
+      extruder_rpm = extruder_rpm_set;
+      feedrate = extruder_feedrate;
+      duration = duration + deltatime; //keep track of extrusion run time
+    }
+    else
+    {
+      extruder_rpm = 0.0;
+      feedrate = puller_feedrate;
+    }
+
+    if (millis() - PID_lasttime > 250)
+    {
+      PID_lasttime = millis();
+
+    control_puller();
 
 #ifdef EXTRUDER_RPM_PID_CONTROL
 
@@ -896,63 +888,62 @@ void loop()
     puller_feedrate = 0;
     extruder_rpm = 0;
   }
+}
 
-/////Output for MQTT
-#ifdef MQTT_SERIAL_OUT
-  if (millis() > time_snap + MQTT_TIME_INTERVAL_MS)
+
+/////////////////////////////////////////////////////////
+///  LOOP
+/////////////////////////////////////////////////////////
+void loop()
+{
+  if (buflen < (BUFSIZE - 1))
   {
-    time_snap = millis();
-    MYSERIAL.print("MQTT:/FE/extruder/val/");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("temp_c", current_temperature[0], 0);
-    json_pair_last("rpm", extruder_rpm, 2);
-
-    MYSERIAL.print("MQTT:/FE/puller/val/");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("feedrate_mm/sec", puller_feedrate, 2);
-    json_pair("rpm", puller_feedrate * (60.0 / PULLER_WHEEL_CIRC), 2);
-    json_pair_last("dist_mm", extrude_length, 2);
-
-    MYSERIAL.print("MQTT:/FE/winder/val/");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("rpm", default_winder_speed, 2);
-    json_pair_last("set", winderSpeed, 2);
-
-#ifdef FILAMENT_SENSOR
-    MYSERIAL.print("MQTT:/FE/filament_dia/val");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("fil_mm", current_filwidth, 2);
-    json_pair_last("blob_mm", current_blobwidth, 2);
-#endif
-
-    MYSERIAL.print("MQTT:/FE/puller/pid/");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("dia_tgt_mm", filament_width_desired, 2);
-    json_pair("p", fwidthKp, 4);
-    json_pair("i", fwidthKi, 4);
-    json_pair_last("d", fwidthKd, 4);
-
-    MYSERIAL.print("MQTT:/FE/extruder/rpm/pid/");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("dia_tgt_mm", blob_width_desired, 2);
-    json_pair("p", bwidthKp, 4);
-    json_pair("i", bwidthKi, 4);
-    json_pair_last("d", bwidthKd, 4);
-
-    MYSERIAL.print("MQTT:/FE/extruder/temp/pid/");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("tgt_c", target_temperature[0], 0);
-    json_pair("p", Kp, 4);
-    json_pair("i", Ki, 4);
-    json_pair_last("d", Kd, 4);
-
-    MYSERIAL.print("MQTT:/FE/status/");
-    json_pair_first("ts_m", time_snap, 0);
-    json_pair("time_remain_sec", timeremaining / 60000, 0);
-    json_pair("time_elapsed_sec", duration / 60000, 0);
-    json_pair_last("sys_bits", extrude_status, 0);
+    get_command();
   }
+
+#ifdef SDSUPPORT
+  card.checkautostart(false);
 #endif
+  if (buflen)
+  {
+#ifdef SDSUPPORT
+    if (card.saving)
+    {
+      if (strstr_P(cmdbuffer[bufindr], PSTR("M29")) == NULL)
+      {
+        card.write_command(cmdbuffer[bufindr]);
+        if (card.logging)
+        {
+          process_commands();
+        }
+        else
+        {
+          SERIAL_PROTOCOLLNPGM(MSG_OK);
+        }
+      }
+      else
+      {
+        card.closefile();
+        SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
+      }
+    }
+    else
+    {
+      process_commands();
+    }
+#else
+    process_commands();
+#endif //SDSUPPORT
+    buflen = (buflen - 1);
+    bufindr = (bufindr + 1) % BUFSIZE;
+  }
+  manage_heater();
+  manage_inactivity();
+  checkHitEndstops();
+  lcd_update();
+  calculate_filament_statistics();
+  manage_motion();
+  log_to_mqtt();
 
 } //end of loop
 
@@ -2014,27 +2005,6 @@ void process_commands()
       break;
 #endif //WINDER_PIN
 
-#if defined(PS_ON_PIN) && PS_ON_PIN > -1
-    case 80:                 // M80 - Turn on Power Supply
-      SET_OUTPUT(PS_ON_PIN); //GND
-      WRITE(PS_ON_PIN, PS_ON_AWAKE);
-
-// If you have a switch on suicide pin, this is useful
-// if you want to start another print with suicide feature after
-// a print without suicide...
-#if defined SUICIDE_PIN && SUICIDE_PIN > -1
-      SET_OUTPUT(SUICIDE_PIN);
-      WRITE(SUICIDE_PIN, HIGH);
-#endif
-
-#ifdef ULTIPANEL
-      powersupply = true;
-      LCD_MESSAGEPGM(WELCOME_MSG);
-      lcd_update();
-#endif
-      break;
-#endif
-
     case 81: // M81 - Turn off Power Supply
       disable_heater();
       st_synchronize();
@@ -2044,13 +2014,6 @@ void process_commands()
       finishAndDisableSteppers();
       winderSpeed = 0;
       delay(1000); // Wait a little before to switch off
-#if defined(SUICIDE_PIN) && SUICIDE_PIN > -1
-      st_synchronize();
-      suicide();
-#elif defined(PS_ON_PIN) && PS_ON_PIN > -1
-      SET_OUTPUT(PS_ON_PIN);
-      WRITE(PS_ON_PIN, PS_ON_ASLEEP);
-#endif
 #ifdef ULTIPANEL
       powersupply = false;
       LCD_MESSAGEPGM(MACHINE_NAME " " MSG_OFF ".");
@@ -2583,39 +2546,6 @@ void process_commands()
     }
     break;
     //#endif //PIDTEMP
-    case 240: // M240  Triggers a camera by emulating a Canon RC-1 : http://www.doc-diy.net/photo/rc-1_hacked/
-    {
-#ifdef CHDK
-
-      SET_OUTPUT(CHDK);
-      WRITE(CHDK, HIGH);
-      chdkHigh = millis();
-      chdkActive = true;
-
-#else
-
-#if defined(PHOTOGRAPH_PIN) && PHOTOGRAPH_PIN > -1
-      const uint8_t NUM_PULSES = 16;
-      const float PULSE_LENGTH = 0.01524;
-      for (int i = 0; i < NUM_PULSES; i++)
-      {
-        WRITE(PHOTOGRAPH_PIN, HIGH);
-        _delay_ms(PULSE_LENGTH);
-        WRITE(PHOTOGRAPH_PIN, LOW);
-        _delay_ms(PULSE_LENGTH);
-      }
-      delay(7.33);
-      for (int i = 0; i < NUM_PULSES; i++)
-      {
-        WRITE(PHOTOGRAPH_PIN, HIGH);
-        _delay_ms(PULSE_LENGTH);
-        WRITE(PHOTOGRAPH_PIN, LOW);
-        _delay_ms(PULSE_LENGTH);
-      }
-#endif
-#endif //chdk end if
-    }
-    break;
 #ifdef DOGLCD
     case 250: // M250  Set LCD contrast value: C<value> (value 0..63)
     {
@@ -2821,7 +2751,7 @@ void process_commands()
       plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], lastpos[P_AXIS], feedrate / 60, active_extruder); //final untretract
     }
     break;
-#endif //FILAMENTCHANGEENABLE
+#endif        //FILAMENTCHANGEENABLE
     case 907: // M907 Set digital trimpot motor current using axis codes.
     {
 #if defined(DIGIPOTSS_PIN) && DIGIPOTSS_PIN > -1
@@ -3252,34 +3182,25 @@ void handle_status_leds(void)
 
 void manage_inactivity()
 {
-  if ((millis() - previous_millis_cmd) > max_inactive_time)
-    if (max_inactive_time)
-      kill();
-  if (stepper_inactive_time)
+  if (((millis() - previous_millis_cmd) > max_inactive_time) &&
+      (max_inactive_time))
   {
-    if ((millis() - previous_millis_cmd) > stepper_inactive_time)
-    {
-      if (blocks_queued() == false)
-      {
-        disable_x();
-        disable_y();
-        disable_z();
-        disable_e0();
-        disable_p();
-        disable_e2();
-      }
-    }
+    kill();
   }
 
-#ifdef CHDK //Check if pin should be set to LOW after M240 set it to HIGH
-  if (chdkActive)
+  if (stepper_inactive_time)
   {
-    chdkActive = false;
-    if (millis() - chdkHigh < CHDK_DELAY)
-      return;
-    WRITE(CHDK, LOW);
+    if (((millis() - previous_millis_cmd) > stepper_inactive_time) &&
+        (blocks_queued() == false))
+    {
+      disable_x();
+      disable_y();
+      disable_z();
+      disable_e0();
+      disable_p();
+      disable_e2();
+    }
   }
-#endif
 
 #if defined(KILL_PIN) && KILL_PIN > -1
   if (0 == READ(KILL_PIN))
@@ -3307,9 +3228,6 @@ void manage_inactivity()
       WRITE(E0_ENABLE_PIN, oldstatus);
     }
 #endif
-#ifdef TEMP_STAT_LEDS
-  handle_status_leds();
-#endif
   check_axes_activity();
 }
 
@@ -3325,13 +3243,9 @@ void kill()
   disable_p();
   disable_e2();
 
-#if defined(PS_ON_PIN) && PS_ON_PIN > -1
-  pinMode(PS_ON_PIN, INPUT);
-#endif
   SERIAL_ERROR_START;
   SERIAL_ERRORLNPGM(MSG_ERR_KILLED);
   LCD_ALERTMESSAGEPGM(MSG_KILLED);
-  suicide();
   while (1)
   { /* Intentionally left empty */
   } // Wait for reset

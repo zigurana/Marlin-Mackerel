@@ -43,7 +43,7 @@ extern bool abort_on_endstop_hit;
 #endif
 
 // Initialize and start the stepper motor subsystem
-void st_init();
+void initialize_stepper_motors();
 
 // Block until all buffered steps are executed
 void st_synchronize();

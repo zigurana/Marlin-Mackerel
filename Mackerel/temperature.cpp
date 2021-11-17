@@ -403,6 +403,7 @@ void checkExtruderAutoFans()
 
 #endif // any extruder auto fan pins set
 
+//check heater every n milliseconds
 void manage_heater()
 {
   float pid_input;
@@ -769,7 +770,7 @@ static void updateTemperaturesFromRawValues()
     CRITICAL_SECTION_END;
 }
 
-void tp_init()
+void initialize_temperature_loop()
 {
  
   // Finish init of mult extruder arrays 

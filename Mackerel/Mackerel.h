@@ -103,6 +103,7 @@ void manage_inactivity();
 void process_commands();
 void print_build_and_version_info_to_serial();
 void print_startup_info_to_serial();
+void setup_beeper();
 void setup_serial();
 
 #if defined(X_ENABLE_PIN) && X_ENABLE_PIN > -1

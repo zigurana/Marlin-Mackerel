@@ -708,14 +708,6 @@ static void lcd_prepare_menu()
   #endif
 #endif
 //    MENU_ITEM(function, MSG_COOLDOWN, lcd_cooldown);
-#if PS_ON_PIN > -1
-    if (powersupply)
-    {
-        MENU_ITEM(gcode, MSG_SWITCH_PS_OFF, PSTR("M81"));
-    }else{
-        MENU_ITEM(gcode, MSG_SWITCH_PS_ON, PSTR("M80"));
-    }
-#endif
   //  MENU_ITEM(submenu, MSG_MOVE_AXIS, lcd_move_menu);  //FMM remove the move functionality from the menu
     END_MENU();
 }
@@ -1312,7 +1304,7 @@ static void menu_action_setting_edit_bool(const char* pstr, bool* ptr)
 #endif//ULTIPANEL
 
 /** LCD API **/
-void lcd_init()
+void initialize_lcd()
 {
     lcd_implementation_init();
     // lcd.setCursor(0, 1);
@@ -1341,6 +1333,8 @@ void lcd_init()
 #endif
     lcd_buttons_update();
     encoderDiff = 0;
+    delay(1000); // wait 1sec to display the splash screen
+
 }
 
 void lcd_update()

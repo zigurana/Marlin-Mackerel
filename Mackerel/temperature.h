@@ -13,7 +13,7 @@
 #endif
 
 // public functions
-void tp_init();  //initialize the heating
+void initialize_temperature_loop();  //initialize the heating
 void manage_heater(); //it is critical that this is called periodically.
 
 // For converting raw Filament Width to milimeters

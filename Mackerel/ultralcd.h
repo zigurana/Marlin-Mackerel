@@ -6,7 +6,7 @@
 #ifdef ULTRA_LCD
 
   void lcd_update();
-  void lcd_init();
+  void initialize_lcd();
   void lcd_setstatus(const char* message);
   void lcd_setstatuspgm(const char* message);
   void lcd_setalertstatuspgm(const char* message);

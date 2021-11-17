@@ -751,7 +751,7 @@ ISR(TIMER1_COMPA_vect)
   }
 #endif // ADVANCE
 
-void st_init()
+void initialize_stepper_motors()
 {
   digipot_init(); //Initialize Digipot Motor Current
   microstep_init(); //Initialize Microstepping Pins
