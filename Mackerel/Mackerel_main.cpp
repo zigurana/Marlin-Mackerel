@@ -835,11 +835,7 @@ void manage_motion()
   }
 }
 
-
-/////////////////////////////////////////////////////////
-///  LOOP
-/////////////////////////////////////////////////////////
-void loop()
+void get_and_process_commands()
 {
   if (buflen < (BUFSIZE - 1))
   {
@@ -852,13 +848,20 @@ void loop()
     buflen = (buflen - 1);
     bufindr = (bufindr + 1) % BUFSIZE;
   }
+}
+
+/////////////////////////////////////////////////////////
+///  LOOP
+/////////////////////////////////////////////////////////
+void loop()
+{
+  get_and_process_commands();
   manage_heater();
   manage_inactivity();
   lcd_update();
   calculate_filament_statistics();
   manage_motion();
   log_to_mqtt();
-
 } //end of loop
 
 void json_pair_core(char *label, float value, int places)

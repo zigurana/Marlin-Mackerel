@@ -6,6 +6,7 @@
 
 #define FORCE_INLINE __attribute__((always_inline)) inline
 
+#include <Arduino.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
