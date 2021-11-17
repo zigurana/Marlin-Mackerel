@@ -38,10 +38,6 @@
   #define REV_E_DIR() WRITE(E0_DIR_PIN, INVERT_E0_DIR)
 #endif
 
-#ifdef ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
-extern bool abort_on_endstop_hit;
-#endif
-
 // Initialize and start the stepper motor subsystem
 void initialize_stepper_motors();
 
@@ -60,11 +56,6 @@ long st_get_position(uint8_t axis);
 void st_wake_up();
 
   
-void checkHitEndstops(); //call from somewhere to create an serial error message with the locations the endstops where hit, in case they were triggered
-void endstops_hit_on_purpose(); //avoid creation of the message, i.e. after homing and before a routine call of checkHitEndstops();
-
-void enable_endstops(bool check); // Enable/disable endstop checking
-
 void checkStepperErrors(); //Print errors detected by the stepper
 
 void finishAndDisableSteppers();

@@ -73,7 +73,6 @@
 // G4  - Dwell S<seconds> or P<milliseconds>
 // G10 - retract filament according to settings of M207
 // G11 - retract recover filament according to settings of M208
-// G28 - Home all Axis
 // G29 - Detailed Z-Probe, probes the bed at 3 or more points.  Will fail if you haven't homed yet.
 // G30 - Single Z Probe, probes bed at current XY location.
 // G90 - Use Absolute Coordinates
@@ -103,7 +102,6 @@
 // M114 - Output current position to serial port
 // M115 - Capabilities string
 // M117 - display message
-// M119 - Output Endstop status to serial port
 // M126 - Solenoid Air Valve Open (BariCUDA support by jmil)
 // M127 - Solenoid Air Valve Closed (BariCUDA vent to atmospheric pressure by jmil)
 // M128 - EtoP Open (BariCUDA EtoP = electricity to air pressure transducer by jmil)
@@ -118,7 +116,6 @@
 // M203 - Set maximum feedrate that your machine can sustain (M203 X200 Y200 Z300 E10000) in mm/sec
 // M204 - Set default acceleration: S normal moves T filament only moves (M204 S3000 T7000) in mm/sec^2  also sets minimum segment time in ms (B20000) to prevent buffer under-runs and M20 minimum feedrate
 // M205 -  advanced settings:  minimum travel speed S=while printing T=travel only,  B=minimum segment time X= maximum xy jerk, Z=maximum Z jerk, E=maximum E jerk
-// M206 - set additional homing offset
 // M207 - set retract length S[positive mm] F[feedrate mm/min] Z[additional zlift/hop], stays in mm regardless of M200 setting
 // M208 - set recover=unretract length S[positive mm surplus to the M207 S*] F[feedrate mm/sec]
 // M209 - S<1=true/0=false> enable automatic retract detect if the slicer did not support G10/11: every normal extrude-only move will be classified as retract depending on the direction.
@@ -143,7 +140,6 @@
 // M503 - print the current settings (from memory not from EEPROM)
 // M600 - Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
 // M665 - set delta configurations
-// M666 - set delta endstop adjustment
 // M605 - Set dual x-carriage movement mode: S<mode> [ X<duplication x-offset> R<duplication temp offset> ]
 // M700 - Extruder data dump
 // M907 - Set digital trimpot motor current using axis codes.
@@ -162,7 +158,6 @@
 //===========================================================================
 //=============================public variables=============================
 //===========================================================================
-float homing_feedrate[] = HOMING_FEEDRATE;
 bool axis_relative_modes[] = AXIS_RELATIVE_MODES;
 unsigned char extrude_status = 0;
 float filament_width_desired = DESIRED_FILAMENT_DIA; //holds the desired filament width (i.e like 2.6mm)
@@ -231,9 +226,6 @@ float volumetric_multiplier[EXTRUDERS] = {1.0
 #endif
 };
 float current_position[NUM_AXIS] = {0.0, 0.0, 0.0, 0.0, 0.0}; //FMM added P_AXIS
-float add_homeing[3] = {0, 0, 0};
-float min_pos[3] = {X_MIN_POS, Y_MIN_POS, Z_MIN_POS};
-float max_pos[3] = {X_MAX_POS, Y_MAX_POS, Z_MAX_POS};
 bool axis_known_position[3] = {false, false, false};
 float zprobe_zoffset;
 
@@ -241,10 +233,6 @@ int winderSpeed = 0;
 uint8_t active_extruder = 0;
 // Extruder offset
 #if EXTRUDERS > 1
-#ifdef SERVO_ENDSTOPS
-int servo_endstops[] = SERVO_ENDSTOPS;
-int servo_endstop_angles[] = SERVO_ENDSTOP_ANGLES;
-#endif
 #endif
 
 #ifdef FWRETRACT
@@ -265,7 +253,6 @@ bool powersupply = true;
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E', 'P'};
 static float destination[NUM_AXIS] = {0.0, 0.0, 0.0, 0.0, 0.0};
 static float offset[3] = {0.0, 0.0, 0.0};
-static bool home_all_axis = true;
 static float feedrate = 1500.0, next_feedrate, saved_feedrate;
 static long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
 
@@ -438,17 +425,6 @@ void initialize_servos()
 #endif
 #if (NUM_SERVOS >= 5)
 #error "TODO: enter initalisation code for more servos"
-#endif
-
-// Set position of Servo Endstops that are defined
-#ifdef SERVO_ENDSTOPS
-  for (int8_t i = 0; i < 3; i++)
-  {
-    if (servo_endstops[i] > -1)
-    {
-      servos[servo_endstops[i]].write(servo_endstop_angles[i * 2 + 1]);
-    }
-  }
 #endif
 }
 
@@ -878,7 +854,6 @@ void loop()
   }
   manage_heater();
   manage_inactivity();
-  checkHitEndstops();
   lcd_update();
   calculate_filament_statistics();
   manage_motion();
@@ -1061,73 +1036,6 @@ DEFINE_PGM_READ_ANY(signed char, byte);
     return pgm_read_any(&array##_P[axis]);          \
   }
 
-XYZ_CONSTS_FROM_CONFIG(float, base_min_pos, MIN_POS);
-XYZ_CONSTS_FROM_CONFIG(float, base_max_pos, MAX_POS);
-XYZ_CONSTS_FROM_CONFIG(float, base_home_pos, HOME_POS);
-XYZ_CONSTS_FROM_CONFIG(float, max_length, MAX_LENGTH);
-XYZ_CONSTS_FROM_CONFIG(float, home_retract_mm, HOME_RETRACT_MM);
-XYZ_CONSTS_FROM_CONFIG(signed char, home_dir, HOME_DIR);
-
-static void axis_is_at_home(int axis)
-{
-  current_position[axis] = base_home_pos(axis) + add_homeing[axis];
-  min_pos[axis] = base_min_pos(axis) + add_homeing[axis];
-  max_pos[axis] = base_max_pos(axis) + add_homeing[axis];
-}
-
-static void homeaxis(int axis)
-{
-#define HOMEAXIS_DO(LETTER) \
-  ((LETTER##_MIN_PIN > -1 && LETTER##_HOME_DIR == -1) || (LETTER##_MAX_PIN > -1 && LETTER##_HOME_DIR == 1))
-
-  if (axis == X_AXIS ? HOMEAXIS_DO(X) : axis == Y_AXIS ? HOMEAXIS_DO(Y)
-                                    : axis == Z_AXIS   ? HOMEAXIS_DO(Z)
-                                                       : 0)
-  {
-    int axis_home_dir = home_dir(axis);
-    current_position[axis] = 0;
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], current_position[P_AXIS]); //FMM added P_AXIS
-
-// Engage Servo endstop if enabled
-#ifdef SERVO_ENDSTOPS
-    if (servo_endstops[axis] > -1)
-    {
-      servos[servo_endstops[axis]].write(servo_endstop_angles[axis * 2]);
-    }
-#endif
-
-    destination[axis] = 1.5 * max_length(axis) * axis_home_dir;
-    feedrate = homing_feedrate[axis];
-    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate / 60, active_extruder); //FMM added P_axis
-    st_synchronize();
-
-    current_position[axis] = 0;
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], current_position[P_AXIS]); //FMM added P_axis
-    destination[axis] = -home_retract_mm(axis) * axis_home_dir;
-    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate / 60, active_extruder); //FMM added P_AXIS
-    st_synchronize();
-
-    destination[axis] = 2 * home_retract_mm(axis) * axis_home_dir;
-    feedrate = homing_feedrate[axis] / 2;
-
-    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate / 60, active_extruder); //FMM added P_AXIS
-    st_synchronize();
-    axis_is_at_home(axis);
-    destination[axis] = current_position[axis];
-    feedrate = 0.0;
-    endstops_hit_on_purpose();
-    axis_known_position[axis] = true;
-
-// Retract Servo endstop if enabled
-#ifdef SERVO_ENDSTOPS
-    if (servo_endstops[axis] > -1)
-    {
-      servos[servo_endstops[axis]].write(servo_endstop_angles[axis * 2 + 1]);
-    }
-#endif
-  }
-}
-#define HOMEAXIS(LETTER) homeaxis(LETTER##_AXIS)
 void refresh_cmd_timeout(void)
 {
   previous_millis_cmd = millis();
@@ -1245,167 +1153,6 @@ void process_commands()
       retract(false);
       break;
 #endif       //FWRETRACT
-    case 28: //G28 Home all Axis one at a time
-      //     saved_feedrate = feedrate;
-      //     saved_feedmultiply = feedmultiply;
-      //     feedmultiply = 100;
-      previous_millis_cmd = millis();
-
-      enable_endstops(true);
-
-      for (int8_t i = 0; i < NUM_AXIS; i++)
-      {
-        destination[i] = current_position[i];
-      }
-      feedrate = 0.0;
-
-      home_all_axis = !((code_seen(axis_codes[X_AXIS])) || (code_seen(axis_codes[Y_AXIS])) || (code_seen(axis_codes[Z_AXIS])));
-
-#if Z_HOME_DIR > 0 // If homing away from BED do Z first
-      if ((home_all_axis) || (code_seen(axis_codes[Z_AXIS])))
-      {
-        HOMEAXIS(Z);
-      }
-#endif
-
-#ifdef QUICK_HOME
-      if ((home_all_axis) || (code_seen(axis_codes[X_AXIS]) && code_seen(axis_codes[Y_AXIS]))) //first diagonal move
-      {
-        current_position[X_AXIS] = 0;
-        current_position[Y_AXIS] = 0;
-
-        int x_axis_home_dir = x_home_dir(active_extruder);
-        extruder_duplication_enabled = false;
-
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        destination[X_AXIS] = 1.5 * max_length(X_AXIS) * x_axis_home_dir;
-        destination[Y_AXIS] = 1.5 * max_length(Y_AXIS) * home_dir(Y_AXIS);
-        feedrate = homing_feedrate[X_AXIS];
-        if (homing_feedrate[Y_AXIS] < feedrate)
-          feedrate = homing_feedrate[Y_AXIS];
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate / 60, active_extruder);
-        st_synchronize();
-
-        axis_is_at_home(X_AXIS);
-        axis_is_at_home(Y_AXIS);
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        destination[X_AXIS] = current_position[X_AXIS];
-        destination[Y_AXIS] = current_position[Y_AXIS];
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate / 60, active_extruder);
-        feedrate = 0.0;
-        st_synchronize();
-        endstops_hit_on_purpose();
-
-        current_position[X_AXIS] = destination[X_AXIS];
-        current_position[Y_AXIS] = destination[Y_AXIS];
-        current_position[Z_AXIS] = destination[Z_AXIS];
-      }
-#endif
-
-      if ((home_all_axis) || (code_seen(axis_codes[X_AXIS])))
-      {
-        HOMEAXIS(X);
-      }
-
-      if ((home_all_axis) || (code_seen(axis_codes[Y_AXIS])))
-      {
-        HOMEAXIS(Y);
-      }
-
-      if (code_seen(axis_codes[X_AXIS]))
-      {
-        if (code_value_long() != 0)
-        {
-          current_position[X_AXIS] = code_value() + add_homeing[0];
-        }
-      }
-
-      if (code_seen(axis_codes[Y_AXIS]))
-      {
-        if (code_value_long() != 0)
-        {
-          current_position[Y_AXIS] = code_value() + add_homeing[1];
-        }
-      }
-
-#if Z_HOME_DIR < 0 // If homing towards BED do Z last
-#ifndef Z_SAFE_HOMING
-      if ((home_all_axis) || (code_seen(axis_codes[Z_AXIS])))
-      {
-#if defined(Z_RAISE_BEFORE_HOMING) && (Z_RAISE_BEFORE_HOMING > 0)
-        destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1); // Set destination away from bed
-        feedrate = max_feedrate[Z_AXIS];
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate, active_extruder);
-        st_synchronize();
-#endif
-        HOMEAXIS(Z);
-      }
-#else // Z Safe mode activated.
-      if (home_all_axis)
-      {
-        destination[X_AXIS] = round(Z_SAFE_HOMING_X_POINT - X_PROBE_OFFSET_FROM_EXTRUDER);
-        destination[Y_AXIS] = round(Z_SAFE_HOMING_Y_POINT - Y_PROBE_OFFSET_FROM_EXTRUDER);
-        destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1); // Set destination away from bed
-        feedrate = XY_TRAVEL_SPEED;
-        current_position[Z_AXIS] = 0;
-
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate, active_extruder);
-        st_synchronize();
-        current_position[X_AXIS] = destination[X_AXIS];
-        current_position[Y_AXIS] = destination[Y_AXIS];
-
-        HOMEAXIS(Z);
-      }
-      // Let's see if X and Y are homed and probe is inside bed area.
-      if (code_seen(axis_codes[Z_AXIS]))
-      {
-        if ((axis_known_position[X_AXIS]) && (axis_known_position[Y_AXIS]) && (current_position[X_AXIS] + X_PROBE_OFFSET_FROM_EXTRUDER >= X_MIN_POS) && (current_position[X_AXIS] + X_PROBE_OFFSET_FROM_EXTRUDER <= X_MAX_POS) && (current_position[Y_AXIS] + Y_PROBE_OFFSET_FROM_EXTRUDER >= Y_MIN_POS) && (current_position[Y_AXIS] + Y_PROBE_OFFSET_FROM_EXTRUDER <= Y_MAX_POS))
-        {
-
-          current_position[Z_AXIS] = 0;
-          plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-          destination[Z_AXIS] = Z_RAISE_BEFORE_HOMING * home_dir(Z_AXIS) * (-1); // Set destination away from bed
-          feedrate = max_feedrate[Z_AXIS];
-          plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], destination[P_AXIS], feedrate, active_extruder);
-          st_synchronize();
-
-          HOMEAXIS(Z);
-        }
-        else if (!((axis_known_position[X_AXIS]) && (axis_known_position[Y_AXIS])))
-        {
-          LCD_MESSAGEPGM(MSG_POSITION_UNKNOWN);
-          SERIAL_ECHO_START;
-          SERIAL_ECHOLNPGM(MSG_POSITION_UNKNOWN);
-        }
-        else
-        {
-          LCD_MESSAGEPGM(MSG_ZPROBE_OUT);
-          SERIAL_ECHO_START;
-          SERIAL_ECHOLNPGM(MSG_ZPROBE_OUT);
-        }
-      }
-#endif
-#endif
-
-      if (code_seen(axis_codes[Z_AXIS]))
-      {
-        if (code_value_long() != 0)
-        {
-          current_position[Z_AXIS] = code_value() + add_homeing[2];
-        }
-      }
-      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], current_position[P_AXIS]); //FMM added P_AXIS
-
-#ifdef ENDSTOPS_ONLY_FOR_HOMING
-      enable_endstops(false);
-#endif
-
-      //    feedrate = saved_feedrate;
-      //    feedmultiply = saved_feedmultiply;
-      previous_millis_cmd = millis();
-      endstops_hit_on_purpose();
-      break;
 
     case 90: // G90
       relative_mode = false;
@@ -1432,7 +1179,7 @@ void process_commands()
           }
           else
           {
-            current_position[i] = code_value() + add_homeing[i];
+            current_position[i] = code_value();
             plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], current_position[P_AXIS]); //FMM added P_AXIS
           }
         }
@@ -1860,58 +1607,7 @@ void process_commands()
 
       SERIAL_PROTOCOLLN("");
       break;
-    case 120: // M120
-      enable_endstops(false);
-      break;
-    case 121: // M121
-      enable_endstops(true);
-      break;
-    case 119: // M119
-      SERIAL_PROTOCOLLN(MSG_M119_REPORT);
-#if defined(X_MIN_PIN) && X_MIN_PIN > -1
-      SERIAL_PROTOCOLPGM(MSG_X_MIN);
-      SERIAL_PROTOCOLLN(((READ(X_MIN_PIN) ^ X_MIN_ENDSTOP_INVERTING) ? MSG_ENDSTOP_HIT : MSG_ENDSTOP_OPEN));
-#endif
-#if defined(X_MAX_PIN) && X_MAX_PIN > -1
-      SERIAL_PROTOCOLPGM(MSG_X_MAX);
-      SERIAL_PROTOCOLLN(((READ(X_MAX_PIN) ^ X_MAX_ENDSTOP_INVERTING) ? MSG_ENDSTOP_HIT : MSG_ENDSTOP_OPEN));
-#endif
-#if defined(Y_MIN_PIN) && Y_MIN_PIN > -1
-      SERIAL_PROTOCOLPGM(MSG_Y_MIN);
-      SERIAL_PROTOCOLLN(((READ(Y_MIN_PIN) ^ Y_MIN_ENDSTOP_INVERTING) ? MSG_ENDSTOP_HIT : MSG_ENDSTOP_OPEN));
-#endif
-#if defined(Y_MAX_PIN) && Y_MAX_PIN > -1
-      SERIAL_PROTOCOLPGM(MSG_Y_MAX);
-      SERIAL_PROTOCOLLN(((READ(Y_MAX_PIN) ^ Y_MAX_ENDSTOP_INVERTING) ? MSG_ENDSTOP_HIT : MSG_ENDSTOP_OPEN));
-#endif
-#if defined(Z_MIN_PIN) && Z_MIN_PIN > -1
-      SERIAL_PROTOCOLPGM(MSG_Z_MIN);
-      SERIAL_PROTOCOLLN(((READ(Z_MIN_PIN) ^ Z_MIN_ENDSTOP_INVERTING) ? MSG_ENDSTOP_HIT : MSG_ENDSTOP_OPEN));
-#endif
-#if defined(Z_MAX_PIN) && Z_MAX_PIN > -1
-      SERIAL_PROTOCOLPGM(MSG_Z_MAX);
-      SERIAL_PROTOCOLLN(((READ(Z_MAX_PIN) ^ Z_MAX_ENDSTOP_INVERTING) ? MSG_ENDSTOP_HIT : MSG_ENDSTOP_OPEN));
-#endif
-      break;
       //TODO: update for all axis, use for loop
-#ifdef BLINKM
-    case 150: // M150
-    {
-      byte red;
-      byte grn;
-      byte blu;
-
-      if (code_seen('R'))
-        red = code_value();
-      if (code_seen('U'))
-        grn = code_value();
-      if (code_seen('B'))
-        blu = code_value();
-
-      SendColors(red, grn, blu);
-    }
-    break;
-#endif        //BLINKM
     case 200: // M200 D<millimeters> set filament diameter and set E axis units to cubic millimeters (use S0 to set back to millimeters).
     {
       float area = .0;
@@ -1997,13 +1693,6 @@ void process_commands()
         max_e_jerk = code_value();
     }
     break;
-    case 206: // M206 additional homeing offset
-      for (int8_t i = 0; i < 3; i++)
-      {
-        if (code_seen(axis_codes[i]))
-          add_homeing[i] = code_value();
-      }
-      break;
 #ifdef FWRETRACT
     case 207: //M207 - set retract length S[positive mm] F[feedrate mm/sec] Z[additional zlift/hop]
     {
@@ -2348,14 +2037,6 @@ void process_commands()
       Config_PrintSettings();
     }
     break;
-#ifdef ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
-    case 540:
-    {
-      if (code_seen('S'))
-        abort_on_endstop_hit = code_value() > 0;
-    }
-    break;
-#endif
 #ifdef FILAMENTCHANGEENABLE
     case 600: //Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
     {
@@ -2768,33 +2449,8 @@ void get_arc_coordinates()
   }
 }
 
-void clamp_to_software_endstops(float target[3])
-{
-  if (min_software_endstops)
-  {
-    if (target[X_AXIS] < min_pos[X_AXIS])
-      target[X_AXIS] = min_pos[X_AXIS];
-    if (target[Y_AXIS] < min_pos[Y_AXIS])
-      target[Y_AXIS] = min_pos[Y_AXIS];
-    if (target[Z_AXIS] < min_pos[Z_AXIS])
-      target[Z_AXIS] = min_pos[Z_AXIS];
-  }
-
-  if (max_software_endstops)
-  {
-    if (target[X_AXIS] > max_pos[X_AXIS])
-      target[X_AXIS] = max_pos[X_AXIS];
-    if (target[Y_AXIS] > max_pos[Y_AXIS])
-      target[Y_AXIS] = max_pos[Y_AXIS];
-    if (target[Z_AXIS] > max_pos[Z_AXIS])
-      target[Z_AXIS] = max_pos[Z_AXIS];
-  }
-}
-
 void prepare_move()
 {
-  clamp_to_software_endstops(destination);
-
   previous_millis_cmd = millis();
 
   // Do not use feedmultiply for E or Z only moves

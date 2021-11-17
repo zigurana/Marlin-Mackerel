@@ -216,7 +216,6 @@ bool IsStopped();
 void enquecommand(const char *cmd);   //put an ASCII command at the end of the current buffer.
 void enquecommand_P(const char *cmd); //put an ASCII command at the end of the current buffer, read from flash
 void prepare_arc_move(char isclockwise);
-void clamp_to_software_endstops(float target[3]);
 
 void refresh_cmd_timeout(void);
 
@@ -235,7 +234,6 @@ extern float extruder_feedrate;
 extern float extruder_rpm;
 extern float extruder_rpm_set;
 extern float puller_feedrate;
-extern float homing_feedrate[];
 extern bool axis_relative_modes[];
 extern unsigned char extrude_status;
 #define ES_ENABLE_SET 1
@@ -274,7 +272,6 @@ extern int extrudemultiply;                    // Sets extrude multiply factor (
 extern int extruder_multiply[EXTRUDERS];       // sets extrude multiply factor (in percent) for each extruder individually
 extern float volumetric_multiplier[EXTRUDERS]; // reciprocal of cross-sectional area of filament (in square millimeters), stored this way to reduce computational burden in planner
 extern float current_position[NUM_AXIS];
-extern float add_homeing[3];
 extern float min_pos[3];
 extern float max_pos[3];
 extern bool axis_known_position[3];
