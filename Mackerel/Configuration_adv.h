@@ -189,14 +189,10 @@
 #define DEFAULT_MINTRAVELFEEDRATE     0.0
 
 // Feedrates for manual moves along X, Y, Z, E, P from panel
-#ifdef ULTIPANEL
 #define MANUAL_FEEDRATE {50*60, 50*60, 4*60, 50*60, 50*60}  // set the speeds for manual moves (mm/min)
-#endif
 
 //Comment to disable setting feedrate multiplier via encoder
-#ifdef ULTIPANEL
-    #define ULTIPANEL_FEEDMULTIPLY
-#endif
+#define ULTIPANEL_FEEDMULTIPLY
 
 // minimum time in microseconds that a movement needs to take if the buffer is emptied.
 #define DEFAULT_MINSEGMENTTIME        20000
@@ -302,16 +298,6 @@
 
 const unsigned int dropsegments=5; //everything with less than this number of steps will be ignored as move and joined with the next movement
 
-// If you are using a RAMPS board or cheap E-bay purchased boards that do not detect when an SD card is inserted
-// You can get round this by connecting a push button or single throw switch to the pin defined as SDCARDCARDDETECT
-// in the pins.h file.  When using a push button pulling the pin to ground this will need inverted.  This setting should
-// be commented out otherwise
-#define SDCARDDETECTINVERTED
-
-#ifdef ULTIPANEL
- #undef SDCARDDETECTINVERTED
-#endif
-
 // Power Signal Control Definitions
 // By default use ATX definition
 #ifndef POWER_SUPPLY
@@ -347,41 +333,6 @@ const unsigned int dropsegments=5; //everything with less than this number of st
 //The ASCII buffer for receiving from the serial:
 #define MAX_CMD_SIZE 96
 #define BUFSIZE 4
-
-
-// Firmware based and LCD controlled retract
-// M207 and M208 can be used to define parameters for the retraction.
-// The retraction can be called by the slicer using G10 and G11
-// until then, intended retractions can be detected by moves that only extrude and the direction.
-// the moves are than replaced by the firmware controlled ones.
-
-// #define FWRETRACT  //ONLY PARTIALLY TESTED
-#ifdef FWRETRACT
-  #define MIN_RETRACT 0.1                //minimum extruded mm to accept a automatic gcode retraction attempt
-  #define RETRACT_LENGTH 3               //default retract length (positive mm)
-  #define RETRACT_FEEDRATE 80*60         //default feedrate for retracting
-  #define RETRACT_ZLIFT 0                //default retract Z-lift
-  #define RETRACT_RECOVER_LENGTH 0       //default additional recover length (mm, added to retract length when recovering)
-  #define RETRACT_RECOVER_FEEDRATE 8*60  //default feedrate for recovering from retraction
-#endif
-
-//adds support for experimental filament exchange support M600; requires display
-#ifdef ULTIPANEL
-  #define FILAMENTCHANGEENABLE
-  #ifdef FILAMENTCHANGEENABLE
-    #define FILAMENTCHANGE_XPOS 3
-    #define FILAMENTCHANGE_YPOS 3
-    #define FILAMENTCHANGE_ZADD 10
-    #define FILAMENTCHANGE_FIRSTRETRACT -2
-    #define FILAMENTCHANGE_FINALRETRACT -100
-  #endif
-#endif
-
-#ifdef FILAMENTCHANGEENABLE
-  #ifdef EXTRUDER_RUNOUT_PREVENT
-    #error EXTRUDER_RUNOUT_PREVENT currently incompatible with FILAMENTCHANGE
-  #endif
-#endif
 
 //===========================================================================
 //=============================  Define Defines  ============================

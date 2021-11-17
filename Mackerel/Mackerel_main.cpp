@@ -262,30 +262,23 @@ int winderSpeed = 0;
 uint8_t active_extruder = 0;
 // Extruder offset
 #if EXTRUDERS > 1
-#ifdef SERVO_ENDSTOPS
-int servo_endstops[] = SERVO_ENDSTOPS;
-int servo_endstop_angles[] = SERVO_ENDSTOP_ANGLES;
-#endif
+  #ifdef SERVO_ENDSTOPS
+    int servo_endstops[] = SERVO_ENDSTOPS;
+    int servo_endstop_angles[] = SERVO_ENDSTOP_ANGLES;
+  #endif
 #endif
 
 #ifdef FWRETRACT
-bool autoretract_enabled = false;
-bool retracted = false;
-float retract_length = RETRACT_LENGTH;
-float retract_feedrate = RETRACT_FEEDRATE;
-float retract_zlift = RETRACT_ZLIFT;
-float retract_recover_length = RETRACT_RECOVER_LENGTH;
-float retract_recover_feedrate = RETRACT_RECOVER_FEEDRATE;
+  bool autoretract_enabled = false;
+  bool retracted = false;
+  float retract_length = RETRACT_LENGTH;
+  float retract_feedrate = RETRACT_FEEDRATE;
+  float retract_zlift = RETRACT_ZLIFT;
+  float retract_recover_length = RETRACT_RECOVER_LENGTH;
+  float retract_recover_feedrate = RETRACT_RECOVER_FEEDRATE;
 #endif
 
-#ifdef ULTIPANEL
-#ifdef PS_DEFAULT_OFF
-bool powersupply = false;
-#else
 bool powersupply = true;
-#endif
-#endif
-
 
 //===========================================================================
 //=============================Private Variables=============================
@@ -520,14 +513,17 @@ void servo_init()
 
 }
 
-void setup()
+void setup_serial()
 {
-  setup_killpin();
-  setup_powerhold();
   MYSERIAL.begin(BAUDRATE);
   SERIAL_PROTOCOLLNPGM("start");
   SERIAL_ECHO_START;
+  print_startup_info_to_serial();
+  print_build_and_version_info_to_serial();
+}
 
+void print_startup_info_to_serial()
+{
   // Check startup - does nothing if bootloader sets MCUSR to 0
   byte mcu = MCUSR;
   if (mcu & 1)
@@ -541,7 +537,10 @@ void setup()
   if (mcu & 32)
     SERIAL_ECHOLNPGM(MSG_SOFTWARE_RESET);
   MCUSR = 0;
+}
 
+void print_build_and_version_info_to_serial()
+{
   SERIAL_ECHOPGM(MSG_MARLIN);
   SERIAL_ECHOLNPGM(VERSION_STRING);
 #ifdef STRING_VERSION_CONFIG_H
@@ -560,6 +559,14 @@ void setup()
   SERIAL_ECHO(freeMemory());
   SERIAL_ECHOPGM(MSG_PLANNER_BUFFER_BYTES);
   SERIAL_ECHOLN((int)sizeof(block_t) * BLOCK_BUFFER_SIZE);
+}
+
+void setup()
+{
+  setup_killpin();
+  setup_powerhold();
+  setup_serial();
+
   for (int8_t i = 0; i < BUFSIZE; i++)
   {
     fromsd[i] = false;
@@ -1580,7 +1587,6 @@ void process_commands()
   {
     switch ((int)code_value())
     {
-#ifdef ULTIPANEL
     case 0: // M0 - Unconditional stop - Wait for user button press on LCD
     case 1: // M1 - Conditional stop - Wait for user button press on LCD
     {
@@ -1615,7 +1621,6 @@ void process_commands()
       LCD_MESSAGEPGM(MSG_RESUMING);
     }
     break;
-#endif
     case 17:
       LCD_MESSAGEPGM(MSG_NO_MOVE);
       enable_x();

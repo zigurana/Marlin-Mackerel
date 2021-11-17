@@ -18,7 +18,6 @@
 * Implementation of the LCD display routines for a DOGM128 graphic display. These are common LCD 128x64 pixel graphic displays.
 **/
 
-#ifdef ULTIPANEL
 #define BLEN_A 0
 #define BLEN_B 1
 #define BLEN_C 2
@@ -30,7 +29,6 @@
 #define encrot2 3
 #define encrot3 1
 #define LCD_CLICKED (buttons & EN_C)
-#endif
 
 #include <U8glib.h>
 #include "DOGMbitmaps.h"

@@ -82,24 +82,26 @@
 //Use the RAMPS 1.4 Analog input A3, Digital 57
 
 #define EXTRUDER_MOTOR_ON_OFF_PIN 3
-#define X_MAX_PIN -1 //FMM remove definition for limit pins to speed the stepper interrupt.
+
+//FMM remove definition for limit pins to speed the stepper interrupt.
+#undef X_MAX_PIN
+#undef Y_MAX_PIN
+#undef Z_MAX_PIN
+#undef X_MIN_PIN
+#undef Y_MIN_PIN
+#undef Z_MIN_PIN
+
+#define X_MAX_PIN -1 
 #define Y_MAX_PIN -1
 #define Z_MAX_PIN -1
 #define X_MIN_PIN -1
 #define Y_MIN_PIN -1
 #define Z_MIN_PIN -1
-#endif
-
 #define WINDER_PIN 8 // FMM used for the winder motor
 
 //#define PS_ON_PIN          12
 #define PS_ON_PIN -1
-
-#if defined(REPRAP_DISCOUNT_SMART_CONTROLLER) || defined(G3D_PANEL)
 #define KILL_PIN -1 //FMM disable the kill pin (momentary pushbutton on LCD)
-#else
-#define KILL_PIN -1
-#endif
 
 #define HEATER_0_PIN 10 // EXTRUDER 1
 #define HEATER_1_PIN 9  // EXTRUDER 2 (FAN On Sprinter)
@@ -127,8 +129,6 @@
 #endif
 
 #ifdef ULTRA_LCD
-
-#ifdef NEWPANEL
 #define LCD_PINS_RS 16
 #define LCD_PINS_ENABLE 17
 #define LCD_PINS_D4 23
@@ -136,7 +136,6 @@
 #define LCD_PINS_D6 27
 #define LCD_PINS_D7 29
 
-#ifdef REPRAP_DISCOUNT_SMART_CONTROLLER
 #define BEEPER 37
 
 #define BTN_EN1 31
@@ -144,63 +143,7 @@
 #define BTN_ENC 35
 
 #define SDCARDDETECT 49
-#elif defined(LCD_I2C_PANELOLU2)
-#define BTN_EN1 47 //reverse if the encoder turns the wrong way.
-#define BTN_EN2 43
-#define BTN_ENC 32
-#define SDSS 53
-#define SDCARDDETECT -1
-#define KILL_PIN 41
-#elif defined(LCD_I2C_VIKI)
-#define BTN_EN1 22 //reverse if the encoder turns the wrong way.
-#define BTN_EN2 7
-#define BTN_ENC -1
-#define SDSS 53
-#define SDCARDDETECT 49
-#else
-//arduino pin which triggers an piezzo beeper
-#define BEEPER 33 // Beeper on AUX-4
 
-//buttons are directly attached using AUX-2
-#ifdef REPRAPWORLD_KEYPAD
-#define BTN_EN1 64   // encoder
-#define BTN_EN2 59   // encoder
-#define BTN_ENC 63   // enter button
-#define SHIFT_OUT 40 // shift register
-#define SHIFT_CLK 44 // shift register
-#define SHIFT_LD 42  // shift register
-#else
-#define BTN_EN1 37
-#define BTN_EN2 35
-#define BTN_ENC 31 //the click
-#endif
-
-#ifdef G3D_PANEL
-#define SDCARDDETECT 49
-#else
-#define SDCARDDETECT -1 // Ramps does not use this port
-#endif
-
-#endif
-
-#else             //old style panel with shift register
-//arduino pin witch triggers an piezzo beeper
-#define BEEPER 33 //No Beeper added
-
-//buttons are attached to a shift register
-// Not wired this yet
-//#define SHIFT_CLK 38
-//#define SHIFT_LD 42
-//#define SHIFT_OUT 40
-//#define SHIFT_EN 17
-
-#define LCD_PINS_RS 16
-#define LCD_PINS_ENABLE 17
-#define LCD_PINS_D4 23
-#define LCD_PINS_D5 25
-#define LCD_PINS_D6 27
-#define LCD_PINS_D7 29
-#endif
 #endif //ULTRA_LCD
 
 #endif // MOTHERBOARD == 34
@@ -275,19 +218,8 @@
 #define Z_MIN_PIN -1
 #endif
 
-#define SENSITIVE_PINS\
-  {
-    0, 1,\ 
-    X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MIN_PIN, X_MAX_PIN,\
-    Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_MIN_PIN, Y_MAX_PIN,\
-    Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_MIN_PIN, Z_MAX_PIN,\
-    PS_ON_PIN,\
-    HEATER_BED_PIN,\
-    WINDER_PIN,\                                                                                                                                                 
-    _E0_PINS _P_PINS _E2_PINS\
-    analogInputToDigitalPin(TEMP_0_PIN),\
-    analogInputToDigitalPin(TEMP_1_PIN),\
-    analogInputToDigitalPin(TEMP_2_PIN),\
-    analogInputToDigitalPin(TEMP_BED_PIN)\
-  }
+#define SENSITIVE_PINS {0, 1, X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MIN_PIN, X_MAX_PIN, Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_MIN_PIN, Y_MAX_PIN, Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_MIN_PIN, Z_MAX_PIN, PS_ON_PIN, \
+                        HEATER_BED_PIN, WINDER_PIN,                  \
+                        _E0_PINS _P_PINS _E2_PINS             \
+                        analogInputToDigitalPin(TEMP_0_PIN), analogInputToDigitalPin(TEMP_1_PIN), analogInputToDigitalPin(TEMP_2_PIN), analogInputToDigitalPin(TEMP_BED_PIN) }  
 #endif // PINS_H

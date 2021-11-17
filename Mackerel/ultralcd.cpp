@@ -21,10 +21,7 @@ int absPreheatHPBTemp;
 int alt_cnt = 0;					// counter for alternate lcd display between av.max min fvd 4-2-2015
 
 unsigned long message_millis=0;
-
-#ifdef ULTIPANEL
 static float manual_feedrate[] = MANUAL_FEEDRATE;
-#endif // ULTIPANEL
 
 /* !Configuration settings */
 
@@ -47,7 +44,6 @@ void copy_and_scalePID_d();
 
 /* Different menus */
 static void lcd_status_screen();
-#ifdef ULTIPANEL
 extern bool powersupply;
 static void lcd_main_menu();
 static void lcd_tune_menu();
@@ -60,9 +56,7 @@ static void lcd_control_Blob_PID_menu();
 static void lcd_control_temperature_preheat_pla_settings_menu();
 static void lcd_control_temperature_preheat_abs_settings_menu();
 static void lcd_control_motion_menu();
-#ifdef DOGLCD
 static void lcd_set_contrast();
-#endif
 static void lcd_control_retract_menu();
 static void lcd_sdcard_menu();
 
@@ -99,23 +93,12 @@ static void menu_action_setting_edit_callback_float6(const char* pstr, float* pt
 static void menu_action_setting_edit_callback_long5(const char* pstr, unsigned long* ptr, unsigned long minValue, unsigned long maxValue, menuFunc_t callbackFunc);
 
 #define ENCODER_FEEDRATE_DEADZONE 10
-
-#if !defined(LCD_I2C_VIKI)
-  #ifndef ENCODER_STEPS_PER_MENU_ITEM
-    #define ENCODER_STEPS_PER_MENU_ITEM 5
-  #endif
-  #ifndef ENCODER_PULSES_PER_STEP
-    #define ENCODER_PULSES_PER_STEP 1
-  #endif
-#else
-  #ifndef ENCODER_STEPS_PER_MENU_ITEM
-    #define ENCODER_STEPS_PER_MENU_ITEM 2 // VIKI LCD rotary encoder uses a different number of steps per rotation
-  #endif
-  #ifndef ENCODER_PULSES_PER_STEP
-    #define ENCODER_PULSES_PER_STEP 1
-  #endif
+#ifndef ENCODER_STEPS_PER_MENU_ITEM
+#define ENCODER_STEPS_PER_MENU_ITEM 5
 #endif
-
+#ifndef ENCODER_PULSES_PER_STEP
+#define ENCODER_PULSES_PER_STEP 1
+#endif
 
 /* Helper macros for menus */
 #define START_MENU() do { \
@@ -152,11 +135,7 @@ static void menu_action_setting_edit_callback_long5(const char* pstr, unsigned l
     } } while(0)
 
 /** Used variables to keep track of the menu */
-#ifndef REPRAPWORLD_KEYPAD
 volatile uint8_t buttons;//Contains the bits of the currently pressed buttons.
-#else
-volatile uint8_t buttons_reprapworld_keypad; // to store the reprapworld_keypad shift register values
-#endif
 #ifdef LCD_HAS_SLOW_BUTTONS
 volatile uint8_t slow_buttons;//Contains the bits of the currently pressed buttons.
 #endif
@@ -167,7 +146,6 @@ uint32_t encoderPosition;
 #if (SDCARDDETECT > 0)
 bool lcd_oldcardstatus;
 #endif
-#endif//ULTIPANEL
 
 menuFunc_t currentMenu = lcd_status_screen; /* function pointer to the currently active menu */
 uint32_t lcd_next_update_millis;
@@ -198,7 +176,6 @@ static void lcd_status_screen()
         lcd_implementation_status_screen();
         lcd_status_update_delay = 5;   /* redraw the main screen every .5 second. This is easier then trying keep track of all things that change on the screen */
     }
-#ifdef ULTIPANEL
     if (LCD_CLICKED)
     {
     	lcd_implementation_init();  //FMM debug - re-initialize LCD -see if it helps for when screen goes wacky   
@@ -249,9 +226,6 @@ static void lcd_status_screen()
     	puller_feedrate = PULLER_FEEDRATE_MIN;
     if (puller_feedrate > PULLER_FEEDRATE_MAX)
     	puller_feedrate = PULLER_FEEDRATE_MAX;
-        
-        
-#endif//ULTIPANEL
 }
 
 #ifdef ULTIPANEL
@@ -260,7 +234,6 @@ static void lcd_return_to_status()
     encoderPosition = 0;
     currentMenu = lcd_status_screen;
 }
-
 
 static void lcd_return_to_control_temperature()
 {
@@ -277,7 +250,6 @@ static void lcd_sdcard_resume()
     card.startFileprint();
     starttime=millis();
 }
-
 
 static void lcd_clear_statistics()
 	{
@@ -1349,7 +1321,6 @@ void lcd_init()
     // lcd_printPGM(PSTR(SPLASH2));
     // lcd.setCursor(0, 3);
     // lcd_printPGM(PSTR(SPLASH3));
-#ifdef NEWPANEL
     pinMode(BTN_EN1,INPUT);
     pinMode(BTN_EN2,INPUT);
     WRITE(BTN_EN1,HIGH);
@@ -1358,32 +1329,6 @@ void lcd_init()
     pinMode(BTN_ENC,INPUT);
     WRITE(BTN_ENC,HIGH);
   #endif
-  #ifdef REPRAPWORLD_KEYPAD
-    pinMode(SHIFT_CLK,OUTPUT);
-    pinMode(SHIFT_LD,OUTPUT);
-    pinMode(SHIFT_OUT,INPUT);
-    WRITE(SHIFT_OUT,HIGH);
-    WRITE(SHIFT_LD,HIGH);
-  #endif
-#else  // Not NEWPANEL
-  #ifdef SR_LCD_2W_NL // Non latching 2 wire shift register
-     pinMode (SR_DATA_PIN, OUTPUT);
-     pinMode (SR_CLK_PIN, OUTPUT);
-  #elif defined(SHIFT_CLK) 
-     pinMode(SHIFT_CLK,OUTPUT);
-     pinMode(SHIFT_LD,OUTPUT);
-     pinMode(SHIFT_EN,OUTPUT);
-     pinMode(SHIFT_OUT,INPUT);
-     WRITE(SHIFT_OUT,HIGH);
-     WRITE(SHIFT_LD,HIGH);
-     WRITE(SHIFT_EN,LOW);
-  #else
-     #ifdef ULTIPANEL
-     #error ULTIPANEL requires an encoder
-     #endif
-  #endif // SR_LCD_2W_NL
-#endif//!NEWPANEL
-
 #if defined (SDSUPPORT) && defined(SDCARDDETECT) && (SDCARDDETECT > 0)
     pinMode(SDCARDDETECT,INPUT);
     WRITE(SDCARDDETECT, HIGH);
@@ -1395,9 +1340,7 @@ void lcd_init()
     slow_buttons = 0;
 #endif
     lcd_buttons_update();
-#ifdef ULTIPANEL
     encoderDiff = 0;
-#endif
 }
 
 void lcd_update()
@@ -1488,13 +1431,11 @@ void lcd_update()
         lcd_implementation_update_indicators();
 #endif
 
-#ifdef ULTIPANEL
         if(timeoutToStatus < millis() && currentMenu != lcd_status_screen)
         {
             lcd_return_to_status();
             lcdDrawUpdate = 2;
         }
-#endif//ULTIPANEL
         if (lcdDrawUpdate == 2)
             lcd_implementation_clear();
         if (lcdDrawUpdate)
@@ -1522,9 +1463,7 @@ void lcd_setalertstatuspgm(const char* message)
 {
     lcd_setstatuspgm(message);
     lcd_status_message_level = 1;
-#ifdef ULTIPANEL
     lcd_return_to_status();
-#endif//ULTIPANEL
 }
 void lcd_reset_alert_level()
 {
@@ -1539,52 +1478,20 @@ void lcd_setcontrast(uint8_t value)
 }
 #endif
 
-#ifdef ULTIPANEL
 /* Warning: This function is called from interrupt context */
 void lcd_buttons_update()
 {
-#ifdef NEWPANEL
     uint8_t newbutton=0;
     if(READ(BTN_EN1)==0)  newbutton|=EN_A;
     if(READ(BTN_EN2)==0)  newbutton|=EN_B;
-  #if BTN_ENC > 0
-    if((blocking_enc<millis()) && (READ(BTN_ENC)==0))
-        newbutton |= EN_C;
-  #endif
+    #if BTN_ENC > 0
+        if((blocking_enc<millis()) && (READ(BTN_ENC)==0))
+            newbutton |= EN_C;
+    #endif
     buttons = newbutton;
     #ifdef LCD_HAS_SLOW_BUTTONS
     buttons |= slow_buttons;
     #endif
-    #ifdef REPRAPWORLD_KEYPAD
-      // for the reprapworld_keypad
-      uint8_t newbutton_reprapworld_keypad=0;
-      WRITE(SHIFT_LD,LOW);
-      WRITE(SHIFT_LD,HIGH);
-      for(int8_t i=0;i<8;i++) {
-          newbutton_reprapworld_keypad = newbutton_reprapworld_keypad>>1;
-          if(READ(SHIFT_OUT))
-              newbutton_reprapworld_keypad|=(1<<7);
-          WRITE(SHIFT_CLK,HIGH);
-          WRITE(SHIFT_CLK,LOW);
-      }
-      buttons_reprapworld_keypad=~newbutton_reprapworld_keypad; //invert it, because a pressed switch produces a logical 0
-	#endif
-#else   //read it from the shift register
-    uint8_t newbutton=0;
-    WRITE(SHIFT_LD,LOW);
-    WRITE(SHIFT_LD,HIGH);
-    unsigned char tmp_buttons=0;
-    for(int8_t i=0;i<8;i++)
-    {
-        newbutton = newbutton>>1;
-        if(READ(SHIFT_OUT))
-            newbutton|=(1<<7);
-        WRITE(SHIFT_CLK,HIGH);
-        WRITE(SHIFT_CLK,LOW);
-    }
-    buttons=~newbutton; //invert it, because a pressed switch produces a logical 0
-#endif//!NEWPANEL
-
     //manage encoder rotation
     uint8_t enc=0;
     if(buttons&EN_A)
@@ -1635,7 +1542,6 @@ bool lcd_clicked()
 {
   return LCD_CLICKED;
 }
-#endif//ULTIPANEL
 
 /********************************/
 /** Float conversion utilities **/
@@ -1686,8 +1592,6 @@ char *ftostr31ns(const float &x)
   conv[5]=0;
   return conv;
 }
-
-
 
 char *ftostr22(const float &x)
 {
@@ -1752,7 +1656,6 @@ char *ftostr32(const float &x)
   return conv;
 }
 
-
 char *itostr31(const int &xx)
 {
   conv[0]=(xx>=0)?'+':'-';
@@ -1764,8 +1667,6 @@ char *itostr31(const int &xx)
   conv[6]=0;
   return conv;
 }
-
-
 
 char *itostr3(const int &xx)
 {
@@ -1853,7 +1754,6 @@ char *ftostr6(const float &x)
   conv[6]=0;
   return conv;
 }
-
 
 //  convert float to string with 12345 format
 char *ftostr5(const float &x)

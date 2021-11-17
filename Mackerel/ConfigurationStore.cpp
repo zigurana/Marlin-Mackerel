@@ -57,10 +57,6 @@ void Config_StoreSettings()
   EEPROM_WRITE_VAR(i,max_z_jerk);
   EEPROM_WRITE_VAR(i,max_e_jerk);
   EEPROM_WRITE_VAR(i,add_homeing);
-  #ifndef ULTIPANEL
-  int plaPreheatHotendTemp = PLA_PREHEAT_HOTEND_TEMP, plaPreheatHPBTemp = PLA_PREHEAT_HPB_TEMP, plaPreheatFanSpeed = PLA_PREHEAT_FAN_SPEED;
-  int absPreheatHotendTemp = PREHEAT_EXTRUDER_TEMP, absPreheatHPBTemp = ABS_PREHEAT_HPB_TEMP, default_winder_speed = ABS_PREHEAT_FAN_SPEED;
-  #endif
   EEPROM_WRITE_VAR(i,plaPreheatHotendTemp);
   EEPROM_WRITE_VAR(i,plaPreheatHPBTemp);
   EEPROM_WRITE_VAR(i,plaPreheatFanSpeed);
@@ -201,10 +197,6 @@ void Config_RetrieveSettings()
         EEPROM_READ_VAR(i,max_z_jerk);
         EEPROM_READ_VAR(i,max_e_jerk);
         EEPROM_READ_VAR(i,add_homeing);
-        #ifndef ULTIPANEL
-        int plaPreheatHotendTemp, plaPreheatHPBTemp, plaPreheatFanSpeed;
-        int absPreheatHotendTemp, absPreheatHPBTemp, default_winder_speed;
-        #endif
         EEPROM_READ_VAR(i,plaPreheatHotendTemp);
         EEPROM_READ_VAR(i,plaPreheatHPBTemp);
         EEPROM_READ_VAR(i,plaPreheatFanSpeed);
@@ -277,18 +269,13 @@ void Config_ResetDefault()
     max_z_jerk=DEFAULT_ZJERK;
     max_e_jerk=DEFAULT_EJERK;
     add_homeing[0] = add_homeing[1] = add_homeing[2] = 0;
-#ifdef ULTIPANEL
     plaPreheatHotendTemp = PLA_PREHEAT_HOTEND_TEMP;
     plaPreheatHPBTemp = PLA_PREHEAT_HPB_TEMP;
     plaPreheatFanSpeed = PLA_PREHEAT_FAN_SPEED;
     absPreheatHotendTemp = PREHEAT_EXTRUDER_TEMP;
     absPreheatHPBTemp = ABS_PREHEAT_HPB_TEMP;
     default_winder_speed = DEFAULT_WINDER_SPEED;
-    
-#endif
-#ifdef DOGLCD
     lcd_contrast = DEFAULT_LCD_CONTRAST;
-#endif
 #ifdef PIDTEMP
     Kp = DEFAULT_Kp;
     Ki = scalePID_i(DEFAULT_Ki);
